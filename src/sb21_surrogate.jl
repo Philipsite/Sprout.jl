@@ -1,6 +1,6 @@
 module sb21_surrogate
 
-using Flux, JLD2
+using Flux, JLD2, CUDA, cuDNN
 using Statistics, ProgressBars
 using Dates
 
