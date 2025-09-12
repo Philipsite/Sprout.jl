@@ -3,3 +3,8 @@
 # VS Code
 .vscode/
 .vscode/*
+
+# data
+data/
+# saved models and logs
+sb21_sm_*
