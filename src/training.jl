@@ -1,7 +1,8 @@
 """
 Training loop
 """
-function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, n_epochs::Int; metrics::Vector{<:Function})
+function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, n_epochs::Int; metrics::Vector{<:Function}, gpu_device::Union{Nothing, CUDADevice} = nothing)
+
     # init NamedTuple for logged loss and metrics
     log_names = vcat([:batch_loss, :mean_loss, :val_loss], [nameof(m) for m in metrics])
     log_vecs = vcat([Matrix{Float32}(undef, n_epochs, Int(size(loader.data[1])[2] / loader.batchsize)), Vector{Float32}(undef, n_epochs), Vector{Float32}(undef, n_epochs)],
@@ -12,7 +13,11 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
     for epoch in ProgressBar(1:n_epochs)
         loss_batches = Float32[]
         for xy_cpu in loader
-            x, y = xy_cpu
+            if !isnothing(gpu_device)
+                x, y = xy_cpu |> gpu_device
+            else
+                x, y = xy_cpu
+            end
 
             # compute loss, let Zygote watch the gradient
             loss, grads = Flux.withgradient(model) do m
@@ -36,7 +41,11 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
         x_val = val_data[1]
         y_val = val_data[2]
 
-        ŷ_val = model(x_val)
+        if !isnothing(gpu_device)
+            ŷ_val = model(x_val |> gpu_device) |> cpu
+        else
+            ŷ_val = model(x_val)
+        end
 
         logs.val_loss[epoch] = loss_f(ŷ_val, y_val)
 
@@ -57,7 +66,13 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
     jldsave(dir * "/saved_opt.jld2"; opt_state)
 
     # save log
-    jldsave(dir * "/log.jld2"; log)
+    jldsave(dir * "/log.jld2"; logs)
 
     return model, opt_state, logs
+end
+
+
+function post_training_plots(logs::NamedTuple)
+    
+
 end
