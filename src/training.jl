@@ -59,7 +59,7 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
     mkdir(dir)
 
     # save model
-    model_state = Flux.state(model)
+    model_state = Flux.state(cpu(model))
     jldsave(dir * "/saved_model.jld2"; model_state)
 
     # save opt_state
@@ -81,7 +81,7 @@ function post_training_plots(logs::NamedTuple, log_dir_path::String)
 
     ax1 = Axis(fig[1, 1], xscale = log10,
                ygridvisible=false, xgridvisible=false,
-               yticklabelcolor = loss_color, 
+               yticklabelcolor = loss_color,
                leftspinecolor = loss_color,
                ytickcolor = loss_color,
                ylabelcolor = loss_color,
@@ -117,7 +117,7 @@ function post_training_plots(logs::NamedTuple, log_dir_path::String)
 
     qasm_line = lines!(ax3, 1:length(logs.mean_loss), logs.loss_asm; color = asm_color)
 
-    xlims!(ax3, (8, length(logs.mean_loss)+0.2*length(logs.mean_loss)))           
+    xlims!(ax3, (8, length(logs.mean_loss)+0.2*length(logs.mean_loss)))
     ylims!(ax3, (-0.01,0.101))
 
     save(log_dir_path * "/train_log.pdf", fig)
