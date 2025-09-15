@@ -75,6 +75,68 @@ end
 
 
 function post_training_plots(logs::NamedTuple, log_dir_path::String)
+    # retrieve all metrics
+    metrics = [k for k in keys(logs) if !endswith(String(k),"_loss")]
+
+    loss_color = :lightskyblue
+    val_loss_color = :royalblue
+    metric_color = :crimson
+
+    fig = Figure(size = (800, 600))
+
+    ax1 = Axis(fig[1, 1], xscale = log10,
+               ygridvisible=false, xgridvisible=false,
+               yticklabelcolor = loss_color,
+               leftspinecolor = loss_color,
+               ytickcolor = loss_color,
+               ylabelcolor = loss_color,
+               rightspinevisible = false,
+               xlabel="Epochs (iteration over training set)",
+               ylabel="Loss value")
+
+    ax2 = Axis(fig[1, 1], xscale = log10,
+               ygridvisible=false, xgridvisible=false,
+               yaxisposition = :right,
+               yticklabelcolor = metric_color,
+               rightspinecolor = metric_color,
+               ytickcolor = metric_color,
+               ylabelcolor = metric_color,
+               ylabel="Metric score")
+
+    loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.mean_loss; color = loss_color)
+    val_loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.val_loss; color = val_loss_color)
+    for m in metrics
+        m_line = lines!(ax2, 1:length(logs.mean_loss), logs[m]; color = metric_color, label=String(m))
+    end
+    hidespines!(ax2, :l, :b, :t)
+    hidexdecorations!(ax2)
+
+    axislegend(ax1, [loss_line, val_loss_line], ["Loss", "Loss (val)"], position = :lb, framevisible=false)
+    axislegend(ax2, position = :rt, framevisible=false)
+
+    ax3 = Axis(fig[2, 1], xscale = log10,
+               ygridvisible=false, xgridvisible=false,
+               yaxisposition = :right,
+               yticklabelcolor = metric_color,
+               rightspinecolor = metric_color,
+               ytickcolor = metric_color,
+               ylabelcolor = metric_color,
+               ylabel="Metric score")
+
+    for m in metrics
+        m_line = lines!(ax3, 1:length(logs.mean_loss), logs[m]; color = metric_color, label=String(m))
+    end
+
+    xlims!(ax3, (0.9 * length(logs.mean_loss), length(logs.mean_loss)+0.2*length(logs.mean_loss)))
+
+    axislegend(ax3, position = :rt, framevisible=false)
+
+    save(log_dir_path * "/train_log.pdf", fig)
+    return fig
+end
+
+
+function post_training_plots_asm(logs::NamedTuple, log_dir_path::String)
     loss_color = :lightskyblue
     val_loss_color = :royalblue
     asm_color = :crimson
