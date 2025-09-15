@@ -59,7 +59,9 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
     mkdir(dir)
 
     # save model
-    model_state = Flux.state(cpu(model))
+    # move to cpu
+    m_cpu = cpu(model)
+    model_state = Flux.state(m_cpu)
     jldsave(dir * "/saved_model.jld2"; model_state)
 
     # save opt_state
