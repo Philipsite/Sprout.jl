@@ -8,6 +8,9 @@ using CairoMakie
 include("custom_loss.jl")
 export loss_asm, loss_vol
 
+include("model.jl")
+export connection
+
 include("norm.jl")
 export Norm, MinMaxScaler
 
