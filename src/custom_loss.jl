@@ -28,3 +28,17 @@ function loss_vol(ŷ, y; agg = mean, ϵ = 1e-3)
 
     return agg(abs.(ŷ[p] .- y[p]))
 end
+
+# UNTESTED //TODO
+function abs_rel_non_zero_deviation(ŷ, y; agg = mean)
+    rel_abs_dev = []
+    for (y_vec, ŷ_vec) = zip(eachcol(y), eachcol(ŷ))
+        non_zero_idx = y_vec .!= 0.0
+    
+        y_f = y_vec[non_zero_idx]
+        ŷ_f = ŷ_vec[non_zero_idx]
+
+        push!(rel_abs_dev, agg(abs.(y_f .- ŷ_f) ./ y_f))
+    end
+    return agg(rel_abs_dev)
+end
