@@ -97,8 +97,8 @@ function generate_dataset(n::Int, filename_base::String;
     y_data = DataFrame(y_data', Symbol.(y_names))
 
     if save_to_csv
-        CSV.write(FILENAME_BASE * "x.csv", x_data)
-        CSV.write(FILENAME_BASE * "y.csv", y_data)
+        CSV.write(filename_base * "x.csv", x_data)
+        CSV.write(filename_base * "y.csv", y_data)
     end
     return x_data, y_data
 end
