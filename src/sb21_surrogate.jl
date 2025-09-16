@@ -5,17 +5,17 @@ using Statistics, ProgressBars
 using Dates
 using CairoMakie
 
+include("phases_sb21.jl")
+export PP, PP_COMP, SS, SS_COMP, IDX_of_variable_components_in_SS
+
 include("custom_loss.jl")
 export loss_asm, loss_vol
 
 include("model.jl")
-export connection
+export connection, connection_reduced_ss_comp
 
 include("norm.jl")
 export Norm, MinMaxScaler
-
-include("phases_sb21.jl")
-export PP, PP_COMP, SS, SS_COMP, IDX_of_variable_components_in_SS
 
 include("training.jl")
 export train_loop, post_training_plots

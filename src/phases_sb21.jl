@@ -281,6 +281,8 @@ nal[idx_of_constant_components_in_SS[end]] .= mnal[idx_of_constant_components_in
 IDX_of_variable_components_in_SS = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS)]...);
 # Concatenate all SS compositions
 SS_COMP = vcat(eval.(Symbol.(SS))...);
+# calculate the number of variable components per ss phase
+N_variable_components_in_SS = [length(v) for v in idx_of_variable_components_in_SS]
 
 
 # --------------------------------------------------------------------
