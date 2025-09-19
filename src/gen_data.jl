@@ -1,3 +1,7 @@
+# Define mantle composition end-member after Kerswell et al. 2024
+# following "Xoxides = ["SiO2"; "Al2O3"; "CaO"; "FeO"; "MgO"; "Na2O"]"
+DSUM_wt = [44.1, 0.261, 0.22, 7.96, 47.4, 0.042];
+PSUM_wt = [46.2, 4.88, 4.34, 8.88, 35.2, 0.33];
 
 function generate_dataset(n::Int, filename_base::String;
                           database              ::String            = "sb21",
@@ -5,6 +9,8 @@ function generate_dataset(n::Int, filename_base::String;
                           sys_in                ::String            = "wt",
                           pressure_range_kbar   ::Tuple             = (10., 400.),
                           temperature_range_C   ::Tuple             = (700., 1800.),
+                          bulk_em_1             ::Vector{Float64}   = DSUM_wt,
+                          bulk_em_2             ::Vector{Float64}   = PSUM_wt,
                           phase_list            ::Vector{String}    = [PP..., SS...],
                           save_to_csv           ::Bool              = true)
 
@@ -18,7 +24,7 @@ function generate_dataset(n::Int, filename_base::String;
     pressure_kbar = rand(rng, pressure_range_kbar[1]:pressure_range_kbar[2], n)
     temperature_C = rand(rng, temperature_range_C[1]:temperature_range_C[2], n)
 
-    X_bulk = generate_bulk_array(rng, n)
+    X_bulk = generate_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2)
 
     # GEM
     out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=Xoxides, sys_in=sys_in)
@@ -103,10 +109,6 @@ function generate_dataset(n::Int, filename_base::String;
     return x_data, y_data
 end
 
-# Define mantle composition end-member after Kerswell et al. 2024
-# following "Xoxides = ["SiO2"; "Al2O3"; "CaO"; "FeO"; "MgO"; "Na2O"]"
-DSUM_wt = [44.1, 0.261, 0.22, 7.96, 47.4, 0.042];
-PSUM_wt = [46.2, 4.88, 4.34, 8.88, 35.2, 0.33];
 
 function generate_bulk_array(rng::Xoshiro, n::Int;
                              bulk_em_1::AbstractVector{Float64} = DSUM_wt,
