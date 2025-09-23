@@ -8,20 +8,20 @@ SS = ["plg", "sp", "ol", "wa", "ri", "opx", "cpx", "hpcpx", "ak", "gtmj", "pv", 
 
 # --------------------------------------------------------------------
 # PP composition in molar fraction of oxides
-# following "Xoxides = ["SiO2"; "Al2O3"; "CaO"; "FeO"; "MgO"; "Na2O"]"
+# following "Xoxides = ["SiO2"; "CaO"; "Al2O3"; "FeO"; "MgO"; "Na2O"]"
 qtz  = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 coe  = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 st   = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-ky   = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0];
-neph = [0.5, 0.25, 0.0, 0.0, 0.0, 0.25];
-capv = [0.5, 0.0, 0.5, 0.0, 0.0, 0.0];
-co   = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+ky   = [0.5, 0.0, 0.5, 0.0, 0.0, 0.0];
+neph = [0.5, 0.0, 0.25, 0.0, 0.0, 0.25];
+capv = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0];
+co   = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 
 PP_COMP = vcat(eval.(Symbol.(PP))...);
 
 # --------------------------------------------------------------------
 # SS composition in molar fraction of oxides
-# following "Xoxides = ["SiO2"; "Al2O3"; "CaO"; "FeO"; "MgO"; "Na2O"]"
+# following "Xoxides = ["SiO2"; "CaO"; "Al2O3"; "FeO"; "MgO"; "Na2O"]"
 
 # extract the component in each SS that is neither zero nor constant,
 # this is the only compisitional variable that must be predicted.
@@ -45,7 +45,7 @@ end
 an = [2.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 an ./= sum(an);
 # albite "Na_1Al_1Si_3O_8"
-ab = [3., 0.5, 0.0, 0.0, 0.0, 0.5];
+ab = [3., 0.9, 0.5, 0.0, 0.0, 0.5];
 ab ./= sum(ab);
 push!(idx_of_variable_components_in_SS, find_variable_components([an, ab]));
 push!(idx_of_constant_components_in_SS, find_constant_components([an, ab]));
@@ -55,10 +55,10 @@ plg[idx_of_constant_components_in_SS[end]] .= an[idx_of_constant_components_in_S
 
 # Spinel
 # spinel "(Mg_3Al_1)(Al_7Mg_1)O_16"
-spi = [0.0, 4.0, 0.0, 0.0, 4.0, 0.0];
+spi = [0.0, 0.0, 4.0, 0.0, 4.0, 0.0];
 spi ./= sum(spi);
 # hercynite "(Fe_3Al_1)(Al_7Fe_1)O_16"
-hc = [0.0, 4.0, 0.0, 4.0, 0.0, 0.0];
+hc = [0.0, 0.0, 4.0, 4.0, 0.0, 0.0];
 hc ./= sum(hc);
 push!(idx_of_variable_components_in_SS, find_variable_components([spi, hc]));
 push!(idx_of_constant_components_in_SS, find_constant_components([spi, hc]));
@@ -113,10 +113,10 @@ en ./= sum(en);
 fs = [2.0, 0.0, 0.0, 2.0, 0.0, 0.0];
 fs ./= sum(fs);
 # mg-tschermak "Mg_1Al_1Si_1O_6Al_1"
-mgts = [1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
+mgts = [1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
 mgts ./= sum(mgts);
 # ortho-diopside "Ca_1Mg_1Si_2O_6"
-odi = [2.0, 0.0, 1.0, 0.0, 1.0, 0.0];
+odi = [2.0, 1.0, 0.0, 0.0, 1.0, 0.0];
 odi ./= sum(odi);
 push!(idx_of_variable_components_in_SS, find_variable_components([en, fs, mgts, odi]));
 push!(idx_of_constant_components_in_SS, find_constant_components([en, fs, mgts, odi]));
@@ -126,10 +126,10 @@ opx[idx_of_constant_components_in_SS[end]] .= en[idx_of_constant_components_in_S
 
 # Clinopyroxene
 # diopside "Ca_1Mg_1Si_2O_6"
-di = [2.0, 0.0, 1.0, 0.0, 1.0, 0.0];
+di = [2.0, 1.0, 0.0, 0.0, 1.0, 0.0];
 di ./= sum(di);
 # hedenbergite "Ca_1Fe_1Si_2O_6"
-he = [2.0, 0.0, 1.0, 1.0, 0.0, 0.0];
+he = [2.0, 1.0, 0.0, 1.0, 0.0, 0.0];
 he ./= sum(he);
 # clinoenstatite "Mg_1Mg_1Si_2O_6"
 cen = [2.0, 0.0, 0.0, 0.0, 2.0, 0.0];
@@ -138,7 +138,7 @@ cen ./= sum(cen);
 cats = [1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 cats ./= sum(cats);
 # jadeite "Na_1Al_1Si_2O_6"
-jd = [2.0, 0.5, 0.0, 0.0, 0.0, 0.5];
+jd = [2.0, 0.0, 0.5, 0.0, 0.0, 0.5];
 jd ./= sum(jd);
 push!(idx_of_variable_components_in_SS, find_variable_components([di, he, cen, cats, jd]));
 push!(idx_of_constant_components_in_SS, find_constant_components([di, he, cen, cats, jd]));
@@ -167,7 +167,7 @@ mgak ./= sum(mgak);
 feak = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
 feak ./= sum(feak);
 # corundum "Al_2O_3"
-cor = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+cor = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 cor ./= sum(cor);
 push!(idx_of_variable_components_in_SS, find_variable_components([mgak, feak, cor]));
 push!(idx_of_constant_components_in_SS, find_constant_components([mgak, feak, cor]));
@@ -177,13 +177,13 @@ ak[idx_of_constant_components_in_SS[end]] .= mgak[idx_of_constant_components_in_
 
 # Garnet-Majorite
 # pyrope "Mg_3Al_1Al_1Si_3O_12"
-py = [3.0, 1.0, 0.0, 0.0, 3.0, 0.0];
+py = [3.0, 0.0, 1.0, 0.0, 3.0, 0.0];
 py ./= sum(py);
 # almandine "Fe_3Al_1Al_1Si_3O_12"
-al = [3.0, 1.0, 0.0, 3.0, 0.0, 0.0];
+al = [3.0, 0.0, 1.0, 3.0, 0.0, 0.0];
 al ./= sum(al);
 # grossular "Ca_3Al_1Al_1Si_3O_12"
-gr = [3.0, 1.0, 3.0, 0.0, 0.0, 0.0];
+gr = [3.0, 3.0, 1.0, 0.0, 0.0, 0.0];
 gr ./= sum(gr);
 # mg-majorite "Mg_3Mg_1Si_1Si_3O_12"
 mgmj = [4.0, 0.0, 0.0, 0.0, 4.0, 0.0];
@@ -205,7 +205,7 @@ mgbg ./= sum(mgbg);
 febg = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
 febg ./= sum(febg);
 # al-perovskite "Al_1Al_1O_3"
-albg = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+albg = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 albg ./= sum(albg);
 push!(idx_of_variable_components_in_SS, find_variable_components([mgbg, febg, albg]));
 push!(idx_of_constant_components_in_SS, find_constant_components([mgbg, febg, albg]));
@@ -221,7 +221,7 @@ mppv ./= sum(mppv);
 fppv = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
 fppv ./= sum(fppv);
 # al-post-perovskite "Al_1Al_1O_3"
-appv = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+appv = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 appv ./= sum(appv);
 push!(idx_of_variable_components_in_SS, find_variable_components([mppv, fppv, appv]));
 push!(idx_of_constant_components_in_SS, find_constant_components([mppv, fppv, appv]));
@@ -231,13 +231,13 @@ ppv[idx_of_constant_components_in_SS[end]] .= mppv[idx_of_constant_components_in
 
 # Ca-ferrite
 # mg-ca-ferrite "Mg_1Al_1Al_1O_4"
-mgcf = [0.0, 1.0, 0.0, 0.0, 1.0, 0.0];
+mgcf = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0];
 mgcf ./= sum(mgcf);
 # fe-ca-ferrite "Fe_1Al_1Al_1O_4"
-fecf = [0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+fecf = [0.0, 0.0, 1.0, 1.0, 0.0, 0.0];
 fecf ./= sum(fecf);
 # na-ca-ferrite "Na_1Al_1Si_1O_4"
-nacf = [1.0, 0.5, 0.0, 0.0, 0.0, 0.5];
+nacf = [1.0, 0.0, 0.5, 0.0, 0.0, 0.5];
 nacf ./= sum(nacf);
 push!(idx_of_variable_components_in_SS, find_variable_components([mgcf, fecf, nacf]));
 push!(idx_of_constant_components_in_SS, find_constant_components([mgcf, fecf, nacf]));
@@ -253,7 +253,7 @@ pe ./= sum(pe);
 wu = [0.0, 0.0, 0.0, 4.0, 0.0, 0.0];
 wu ./= sum(wu);
 #  alpha-nao2-phase "Na_2Al_2O_4"
-anao = [0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+anao = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
 anao ./= sum(anao);
 push!(idx_of_variable_components_in_SS, find_variable_components([pe, wu, anao]));
 push!(idx_of_constant_components_in_SS, find_constant_components([pe, wu, anao]));
@@ -263,13 +263,13 @@ mw[idx_of_constant_components_in_SS[end]] .= pe[idx_of_constant_components_in_SS
 
 # NAL-phase
 # mg-nal "Na_1Mg_2(Al_5Si_1)O_12"
-mnal = [1.0, 2.5, 0.0, 0.0, 2.0, 0.5];
+mnal = [1.0, 0.0, 2.5, 0.0, 2.0, 0.5];
 mnal ./= sum(mnal);
 # fe-nal "Na_1Fe_2(Al_5Si_1)O_12"
-fnal = [1.0, 2.5, 0.0, 2.0, 0.0, 0.5];
+fnal = [1.0, 0.0, 2.5, 2.0, 0.0, 0.5];
 fnal ./= sum(fnal);
 # na-nal "Na_1Na_2(Al_3Si_3)O_12"
-nnal = [3.0, 1.5, 0.0, 0.0, 0.0, 1.5];
+nnal = [3.0, 0.0, 1.5, 0.0, 0.0, 1.5];
 nnal ./= sum(nnal);
 push!(idx_of_variable_components_in_SS, find_variable_components([mnal, fnal, nnal]));
 push!(idx_of_constant_components_in_SS, find_constant_components([mnal, fnal, nnal]));
