@@ -22,6 +22,9 @@ export connection, connection_reduced_ss_comp
 include("norm.jl")
 export Norm, MinMaxScaler
 
+include("preprocessing.jl")
+export preprocess_for_classifier, preprocess_for_regressor
+
 include("training.jl")
 export train_loop, post_training_plots
 
