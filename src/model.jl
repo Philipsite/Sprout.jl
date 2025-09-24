@@ -1,7 +1,33 @@
+# Remove the entry for post-perovskite, as this phase is never predicted to be stable
+N_variable_components_in_SS_adjusted = N_variable_components_in_SS[[1:11...,13:end...]]
+
+"""
+connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
+    
+This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
+and only predicts the variable compositional variables for SS-phases.
+"""
+function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
+    # using @view to get a StridedArray and avoid Scalar indexing
+    y_phase_frac = @view(y_reg[1:19, :]) .* y_clas
+
+    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adjusted, 1:length(y_clas[6:end, 1]))]...)
+    y_ss_comp = @view(y_reg[20:end-3, :]) .* ss_comp_asm
+
+    y_phys_prop = @view(y_reg[end-2:end, :])
+
+    return vcat(y_phase_frac, y_ss_comp, y_phys_prop)
+end
+
+#=
+ARCHIVED CONNECTION FUNCTIONS
+
+archived: 24 Sept 2025
+=#
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
 """
-function connection(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
+function zz_connection(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
     # using @view to get a StridedArray and avoid Scalar indexing
     y_phase_frac = @view(y_reg[1:22, :]) .* y_clas
 
@@ -20,7 +46,7 @@ connection function used within compound model's Parallel layer to reduce ŷ_cl
     
 This function is used for models that only predict variable variables for SS-phases.
 """
-function connection_reduced_ss_comp(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
+function zz_connection_reduced_ss_comp(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
     # using @view to get a StridedArray and avoid Scalar indexing
     y_phase_frac = @view(y_reg[1:22, :]) .* y_clas
 

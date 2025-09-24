@@ -39,6 +39,43 @@ using sb21_surrogate
 end
 
 @testset "model.jl" begin
+    # --- THIS BLOCK TESTS CONNECTION FUNCTIONS ----
+    y_clas = [1. 0. 1. 0.;
+              1. 0. 1. 0.;
+              1. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 1.;
+              0. 0. 0. 1.;
+              0. 0. 0. 0.;
+              0. 0. 0. 1.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 0. 0.;
+              0. 0. 1. 0.;
+              0. 0. 0. 0.;
+              1. 0. 0. 0.;
+              0. 1. 0. 0.]
+    
+    y_reg = ones(75, 4)
+    y = connection_reduced(y_clas, y_reg)
+
+    @test y[1:19, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
+    @test y[1:19, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.]
+    
+    y_test_ss_comp2 = zeros(53)
+    y_test_ss_comp2[1:4]  .= 1.0
+    y_test_ss_comp2[5:6] .= 1.0
+    y_test_ss_comp2[9:10] .= 1.0
+    @test y[20:end-3, 4] == y_test_ss_comp2
+
+    # test if physical rock properties (last three entries) remain unaltered by the connection function
+    @test y[end-2:end, 4] == [1., 1., 1.]
+
+    # --- THIS BLOCK TESTS ARCHIVED CONNECTION FUNCTIONS ----
     y_clas = [1. 0. 1. 0.;
               1. 0. 1. 0.;
               1. 0. 0. 0.;
@@ -63,14 +100,14 @@ end
               0. 1. 0. 0.]
 
     y_reg = ones(112, 4)
-    y = connection(y_clas, y_reg)
+    y = sb21_surrogate.zz_connection(y_clas, y_reg)
     @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
     @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
     @test y[23:end, 2] == vcat(repeat([0.], 6*14), ones(6))
     @test y[23:end, 3] == vcat(repeat([0.], 6*10), ones(6), repeat([0.], 6*4))
 
     y_reg = ones(79, 4)
-    y = connection_reduced_ss_comp(y_clas, y_reg)
+    y = sb21_surrogate.zz_connection_reduced_ss_comp(y_clas, y_reg)
     @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
     @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
 
@@ -86,6 +123,7 @@ end
     y_test_ss_comp2[9:10] .= 1.0
     @test y[23:end, 4] == y_test_ss_comp2
 
+    # --------------------------------------------------------
 end
 
 @testset "norm.jl" begin
@@ -107,8 +145,8 @@ end
 end
 
 @testset "preprocessing" begin
-    x_data = CSV.read("test/test_data/sb21_22Sep25_t_x.csv", DataFrame)
-    y_data = CSV.read("test/test_data/sb21_22Sep25_t_y.csv", DataFrame)
+    x_data = CSV.read("test_data/sb21_22Sep25_t_x.csv", DataFrame)
+    y_data = CSV.read("test_data/sb21_22Sep25_t_y.csv", DataFrame)
 
     x, y = preprocess_for_classifier(x_data, y_data)
 

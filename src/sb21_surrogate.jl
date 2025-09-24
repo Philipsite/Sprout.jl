@@ -17,7 +17,7 @@ include("gen_data.jl")
 export generate_dataset, generate_bulk_array
 
 include("model.jl")
-export connection, connection_reduced_ss_comp
+export connection_reduced
 
 include("norm.jl")
 export Norm, MinMaxScaler
