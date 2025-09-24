@@ -20,7 +20,7 @@ include("model.jl")
 export connection_reduced
 
 include("norm.jl")
-export Norm, MinMaxScaler
+export Norm, MinMaxScaler, denorm
 
 include("preprocessing.jl")
 export preprocess_for_classifier, preprocess_for_regressor

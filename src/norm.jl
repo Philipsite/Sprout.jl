@@ -17,6 +17,11 @@ function Norm(x::AbstractMatrix)
     std = Statistics.std(x, dims=2)
     return Norm(mean, std)
 end
+# de-normalise call
+function denorm(n::Norm, x_n::AbstractMatrix)
+    x = x_n .* n.std .+ n.mean
+    return x
+end
 
 """
 Min-Max scale data feature-wise
