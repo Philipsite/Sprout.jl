@@ -5,7 +5,7 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
 
     # init NamedTuple for logged loss and metrics
     log_names = vcat([:batch_loss, :mean_loss, :val_loss], [nameof(m) for m in metrics])
-    log_vecs = vcat([Matrix{Float32}(undef, n_epochs, Int(size(loader.data[1])[2] / loader.batchsize)), Vector{Float32}(undef, n_epochs), Vector{Float32}(undef, n_epochs)],
+    log_vecs = vcat([Matrix{Float32}(undef, n_epochs, ceil(Int, size(loader.data[1])[2] / loader.batchsize)), Vector{Float32}(undef, n_epochs), Vector{Float32}(undef, n_epochs)],
                     [Vector{Float32}(undef, n_epochs) for _ in metrics])
     logs = NamedTuple{Tuple(log_names)}(log_vecs)
 
