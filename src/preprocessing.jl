@@ -30,6 +30,38 @@ For the SS composition only variable components are exracted, e.g. no Si in Oliv
 function preprocess_for_regressor(x_data::DataFrame, y_data::DataFrame)
     x = Matrix(Matrix{Float32}(x_data)')
 
+    idx_stable_phases, idx_SS_variable_and_stable = indices_of_stable_phases()
+
+    n_features = size(y_data, 2)
+    y = Matrix(Matrix{Float32}(y_data)')[[idx_stable_phases..., idx_SS_variable_and_stable..., n_features-2, n_features-1, n_features],:]
+
+    return x::Matrix, y::Matrix
+end
+
+
+"""
+Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
+Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
+For the SS composition only variable components are exracted, e.g. no Si in Olivine as this is constant.
+
+Extract modes + ss-composition only (no bulk rock physical params)
+"""
+function preprocess_for_regressor_modes_sscomp(x_data::DataFrame, y_data::DataFrame)
+    x = Matrix(Matrix{Float32}(x_data)')
+
+    idx_stable_phases, idx_SS_variable_and_stable = indices_of_stable_phases()
+
+    y = Matrix(Matrix{Float32}(y_data)')[[idx_stable_phases..., idx_SS_variable_and_stable...],:]
+
+    return x::Matrix, y::Matrix
+end
+
+
+"""
+Used within preprocess-functions.
+Set indices for the filterin.
+"""
+function indices_of_stable_phases()
     # set up indices of stable phases
     idx_stable_phases = [i for i in 1:22 if i ∉ IDX_of_phases_never_stable]
     # set up indices of compositional entries in SS that are variable, that belong to stable phases
@@ -39,8 +71,5 @@ function preprocess_for_regressor(x_data::DataFrame, y_data::DataFrame)
     # correct to start at index 23
     idx_SS_variable_and_stable .+= 22
 
-    n_features = size(y_data, 2)
-    y = Matrix(Matrix{Float32}(y_data)')[[idx_stable_phases..., idx_SS_variable_and_stable..., n_features-2, n_features-1, n_features],:]
-
-    return x::Matrix, y::Matrix
+    return idx_stable_phases, idx_SS_variable_and_stable
 end
