@@ -61,7 +61,7 @@ end
               0. 1. 0. 0.]
     
     y_reg = ones(75, 4)
-    y = connection_reduced(y_clas, y_reg)
+    y = connection_reduced_phys_params(y_clas, y_reg)
 
     @test y[1:19, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
     @test y[1:19, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.]
@@ -74,6 +74,19 @@ end
 
     # test if physical rock properties (last three entries) remain unaltered by the connection function
     @test y[end-2:end, 4] == [1., 1., 1.]
+
+    y_reg = ones(72, 4)
+    y = connection_reduced(y_clas, y_reg)
+
+    @test y[1:19, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
+    @test y[1:19, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.]
+    
+    y_test_ss_comp2 = zeros(53)
+    y_test_ss_comp2[1:4]  .= 1.0
+    y_test_ss_comp2[5:6] .= 1.0
+    y_test_ss_comp2[9:10] .= 1.0
+    @test y[20:end, 4] == y_test_ss_comp2
+
 
     # --- THIS BLOCK TESTS ARCHIVED CONNECTION FUNCTIONS ----
     y_clas = [1. 0. 1. 0.;

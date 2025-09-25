@@ -17,13 +17,13 @@ include("gen_data.jl")
 export generate_dataset, generate_bulk_array
 
 include("model.jl")
-export connection_reduced
+export connection_reduced, connection_reduced_phys_params
 
 include("norm.jl")
 export Norm, MinMaxScaler, denorm
 
 include("preprocessing.jl")
-export preprocess_for_classifier, preprocess_for_regressor
+export preprocess_for_classifier, preprocess_for_regressor, preprocess_for_regressor_modes_sscomp
 
 include("training.jl")
 export train_loop, post_training_plots

@@ -80,7 +80,7 @@ function post_training_plots(logs::NamedTuple, log_dir_path::String)
 
     loss_color = :lightskyblue
     val_loss_color = :royalblue
-    metric_color = :crimson
+    metric_color = cgrad(:sun)[1:length(metrics)]
 
     fig = Figure(size = (800, 600))
 
@@ -97,16 +97,16 @@ function post_training_plots(logs::NamedTuple, log_dir_path::String)
     ax2 = Axis(fig[1, 1], xscale = log10,
                ygridvisible=false, xgridvisible=false,
                yaxisposition = :right,
-               yticklabelcolor = metric_color,
-               rightspinecolor = metric_color,
-               ytickcolor = metric_color,
-               ylabelcolor = metric_color,
+               yticklabelcolor = metric_color[1],
+               rightspinecolor = metric_color[1],
+               ytickcolor = metric_color[1],
+               ylabelcolor = metric_color[1],
                ylabel="Metric score")
 
     loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.mean_loss; color = loss_color)
     val_loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.val_loss; color = val_loss_color)
-    for m in metrics
-        m_line = lines!(ax2, 1:length(logs.mean_loss), logs[m]; color = metric_color, label=String(m))
+    for (i, m) in enumerate(metrics)
+        m_line = lines!(ax2, 1:length(logs.mean_loss), logs[m]; color = metric_color[i], label=String(m))
     end
     hidespines!(ax2, :l, :b, :t)
     hidexdecorations!(ax2)
@@ -117,14 +117,14 @@ function post_training_plots(logs::NamedTuple, log_dir_path::String)
     ax3 = Axis(fig[2, 1], xscale = log10,
                ygridvisible=false, xgridvisible=false,
                yaxisposition = :right,
-               yticklabelcolor = metric_color,
-               rightspinecolor = metric_color,
-               ytickcolor = metric_color,
-               ylabelcolor = metric_color,
+               yticklabelcolor = metric_color[1],
+               rightspinecolor = metric_color[1],
+               ytickcolor = metric_color[1],
+               ylabelcolor = metric_color[1],
                ylabel="Metric score")
 
-    for m in metrics
-        m_line = lines!(ax3, 1:length(logs.mean_loss), logs[m]; color = metric_color, label=String(m))
+    for (i, m) in enumerate(metrics)
+        m_line = lines!(ax3, 1:length(logs.mean_loss), logs[m]; color = metric_color[i], label=String(m))
     end
 
     xlims!(ax3, (0.9 * length(logs.mean_loss), length(logs.mean_loss)+0.2*length(logs.mean_loss)))

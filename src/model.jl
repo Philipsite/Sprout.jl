@@ -6,8 +6,10 @@ connection function used within compound model's Parallel layer to reduce ŷ_cl
     
 This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
 and only predicts the variable compositional variables for SS-phases.
+
+Including bulk rock physical params.
 """
-function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
+function connection_reduced_phys_params(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
     # using @view to get a StridedArray and avoid Scalar indexing
     y_phase_frac = @view(y_reg[1:19, :]) .* y_clas
 
@@ -17,6 +19,25 @@ function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArr
     y_phys_prop = @view(y_reg[end-2:end, :])
 
     return vcat(y_phase_frac, y_ss_comp, y_phys_prop)
+end
+
+
+"""
+connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
+    
+This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
+and only predicts the variable compositional variables for SS-phases.
+
+Excluding bulk rock physical params.
+"""
+function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
+    # using @view to get a StridedArray and avoid Scalar indexing
+    y_phase_frac = @view(y_reg[1:19, :]) .* y_clas
+
+    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adjusted, 1:length(y_clas[6:end, 1]))]...)
+    y_ss_comp = @view(y_reg[20:end, :]) .* ss_comp_asm
+
+    return vcat(y_phase_frac, y_ss_comp)
 end
 
 #=
