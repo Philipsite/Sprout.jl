@@ -45,7 +45,7 @@ end
 an = [2.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 an ./= sum(an);
 # albite "Na_1Al_1Si_3O_8"
-ab = [3., 0.9, 0.5, 0.0, 0.0, 0.5];
+ab = [3., 0.0, 0.5, 0.0, 0.0, 0.5];
 ab ./= sum(ab);
 push!(idx_of_variable_components_in_SS, find_variable_components([an, ab]));
 push!(idx_of_constant_components_in_SS, find_constant_components([an, ab]));
