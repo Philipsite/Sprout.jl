@@ -22,7 +22,7 @@ cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
 [compat]
 BenchmarkTools = "1.6.0"
 CSV = "0.10.15"
-CUDA = "5.8.3"
+CUDA = "5.8.2"
 CairoMakie = "0.15.6"
 DataFrames = "1.7.1"
 Dates = "1.11.0"
