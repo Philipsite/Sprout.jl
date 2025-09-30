@@ -22,6 +22,9 @@ export connection_reduced, connection_reduced_phys_params
 include("norm.jl")
 export Norm, MinMaxScaler, denorm
 
+include("phase_diagram.jl")
+export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram
+
 include("preprocessing.jl")
 export preprocess_for_classifier, preprocess_for_regressor, preprocess_for_regressor_modes_sscomp
 
