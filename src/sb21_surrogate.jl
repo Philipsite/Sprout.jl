@@ -2,7 +2,7 @@ module sb21_surrogate
 
 using Reexport: @reexport
 using Flux, JLD2, CUDA, cuDNN
-using CSV, DataFrames, Statistics, ProgressBars
+using CSV, DataFrames, Statistics, Distributions, ProgressBars
 @reexport using MAGEMin_C
 using Base.Threads, Random, Dates
 using CairoMakie
@@ -14,7 +14,7 @@ include("custom_loss.jl")
 export loss_asm, loss_vol
 
 include("gen_data.jl")
-export generate_dataset, generate_bulk_array
+export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
 include("model.jl")
 export connection_reduced, connection_reduced_phys_params

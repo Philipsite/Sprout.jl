@@ -11,6 +11,7 @@ function generate_dataset(n::Int, filename_base::String;
                           temperature_range_C   ::Tuple             = (700., 1800.),
                           bulk_em_1             ::Vector{Float64}   = DSUM_wt,
                           bulk_em_2             ::Vector{Float64}   = PSUM_wt,
+                          noisy_bulk            ::Bool              = false,
                           phase_list            ::Vector{String}    = [PP..., SS...],
                           save_to_csv           ::Bool              = true)
 
@@ -24,7 +25,11 @@ function generate_dataset(n::Int, filename_base::String;
     pressure_kbar = rand(rng, pressure_range_kbar[1]:pressure_range_kbar[2], n)
     temperature_C = rand(rng, temperature_range_C[1]:temperature_range_C[2], n)
 
-    X_bulk = generate_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2)
+    if noisy_bulk
+        X_bulk = generate_noisy_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2, λ=100)
+    else
+        X_bulk = generate_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2)
+    end
 
     # GEM
     out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=Xoxides, sys_in=sys_in)
@@ -128,6 +133,28 @@ function generate_bulk_array(rng::Xoshiro, n::Int;
 
         x ./= sum(x)
         push!(X, x)
+    end
+
+    return X
+end
+
+
+function generate_noisy_bulk_array(rng::Xoshiro, n::Int;
+                                   bulk_em_1::AbstractVector{Float64} = DSUM_wt,
+                                   bulk_em_2::AbstractVector{Float64} = PSUM_wt,
+                                   λ        ::Real                    = 100
+                                   )::AbstractVector{<:AbstractVector{Float64}}
+    X = Vector{Vector{Float64}}()
+    for _ in eachindex(1:n)
+        x_em1 = rand(rng, Float64)
+        x_em2 = 1 - x_em1
+        x = x_em1 .* bulk_em_1 .+ x_em2 .* bulk_em_2
+
+        x ./= sum(x)
+
+        dirichlet_x = Dirichlet(x .* λ)
+        x_noisy = rand(dirichlet_x)
+        push!(X, x_noisy)
     end
 
     return X
