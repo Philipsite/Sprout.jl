@@ -12,6 +12,7 @@ function generate_dataset(n::Int, filename_base::String;
                           bulk_em_1             ::Vector{Float64}   = DSUM_wt,
                           bulk_em_2             ::Vector{Float64}   = PSUM_wt,
                           noisy_bulk            ::Bool              = false,
+                          λ_dirichlet           ::Real              = 100,
                           phase_list            ::Vector{String}    = [PP..., SS...],
                           save_to_csv           ::Bool              = true)
 
@@ -26,7 +27,7 @@ function generate_dataset(n::Int, filename_base::String;
     temperature_C = rand(rng, temperature_range_C[1]:temperature_range_C[2], n)
 
     if noisy_bulk
-        X_bulk = generate_noisy_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2, λ=100)
+        X_bulk = generate_noisy_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2, λ=λ_dirichlet)
     else
         X_bulk = generate_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2)
     end
