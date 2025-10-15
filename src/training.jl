@@ -140,6 +140,8 @@ function post_training_plots_asm(logs::NamedTuple, log_dir_path::String)
     loss_color = :lightskyblue
     val_loss_color = :royalblue
     asm_color = :crimson
+    frac_mismatch_asm_color = :red
+    frac_mismatch_phases_color = :orange
 
     fig = Figure(size = (800, 600))
 
@@ -160,15 +162,20 @@ function post_training_plots_asm(logs::NamedTuple, log_dir_path::String)
                rightspinecolor = asm_color,
                ytickcolor = asm_color,
                ylabelcolor = asm_color,
-               ylabel="Q(assemblage)")
+               ylabel="Metric value")
 
     loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.mean_loss; color = loss_color)
     val_loss_line = lines!(ax1, 1:length(logs.mean_loss), logs.val_loss; color = val_loss_color)
+
     qasm_line = lines!(ax2, 1:length(logs.mean_loss), logs.loss_asm; color = asm_color)
+    frac_mismatch_asm_line = lines!(ax2, 1:length(logs.fraction_mismatched_asm), logs.fraction_mismatched_asm; color = frac_mismatch_asm_color)
+    frac_mismatch_phases_line = lines!(ax2, 1:length(logs.fraction_mismatched_phases), logs.fraction_mismatched_phases; color = frac_mismatch_phases_color)
+
     hidespines!(ax2, :l, :b, :t)
     hidexdecorations!(ax2)
 
     axislegend(ax1, [loss_line, val_loss_line], ["Loss", "Loss (val)"], position = :lb, framevisible=false)
+    axislegend(ax2, [qasm_line, frac_mismatch_asm_line, frac_mismatch_phases_line], ["Q_asm", "Mismatched asm", "Mismatched phases"], position = :rt, framevisible=false)
 
     ax3 = Axis(fig[2, 1], xscale = log10,
                ygridvisible=false, xgridvisible=false,
@@ -180,9 +187,12 @@ function post_training_plots_asm(logs::NamedTuple, log_dir_path::String)
                ylabel="Q(assemblage)")
 
     qasm_line = lines!(ax3, 1:length(logs.mean_loss), logs.loss_asm; color = asm_color)
+    frac_mismatch_asm_line = lines!(ax3, 1:length(logs.fraction_mismatched_asm), logs.fraction_mismatched_asm; color = frac_mismatch_asm_color)
+    frac_mismatch_phases_line = lines!(ax3, 1:length(logs.fraction_mismatched_phases), logs.fraction_mismatched_phases; color = frac_mismatch_phases_color)
+
 
     xlims!(ax3, (8, length(logs.mean_loss)+0.2*length(logs.mean_loss)))
-    ylims!(ax3, (-0.01,0.101))
+    ylims!(ax3, (-0.01,0.11))
 
     save(log_dir_path * "/train_log.pdf", fig)
     return fig
