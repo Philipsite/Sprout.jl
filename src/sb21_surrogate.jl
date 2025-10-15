@@ -12,6 +12,7 @@ export PP, PP_COMP, SS, SS_COMP, IDX_of_variable_components_in_SS
 
 include("custom_loss.jl")
 export loss_asm, loss_vol
+export fraction_mismatched_asm, fraction_mismatched_phases
 
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array

@@ -193,4 +193,77 @@ end
                     
                     3777.8538289099642,186.4584485037721,101.56898524712557]
 end
+
+@testset "custom_loss.jl" begin
+    # Test data setup
+    # Create test predictions (continuous values 0-1)
+    ŷ = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
+                0.3 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
+    
+    # Create test ground truth (boolean)
+    y = BitMatrix([true false true false;   # phase 1: present, absent, present, absent
+                   false true false true;   # phase 2: absent, present, absent, present
+                   true false false true])  # phase 3: present, absent, absent, present
+    
+    @testset "fraction_mismatched_asm tests" begin
+        # Test with default threshold (ϵ = 0.5)
+        result = fraction_mismatched_asm(ŷ, y)
+        @test result ≈ 0.0
+        
+        # Test with different threshold
+        result_strict = fraction_mismatched_asm(ŷ, y, ϵ = 0.25)
+        # 1 out of 4 assemblages mismatch, so fraction should be 0.25
+        @test result_strict ≈ 0.25
+
+        # Test with different data
+        ŷ_m = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
+                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                      0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
+        
+        result = fraction_mismatched_asm(ŷ_m, y)
+        @test result ≈ 0.25
+        
+        # Test case: all predictions wrong
+        ŷ_wrong = Float32[0.1 0.1; 0.9 0.9]
+        y_wrong = BitMatrix([true true; false false])
+        result_all_wrong = fraction_mismatched_asm(ŷ_wrong, y_wrong)
+        @test result_all_wrong ≈ 1.0
+
+    end
+    
+    @testset "fraction_mismatched_phases tests" begin
+        # Test with default threshold (ϵ = 0.5)
+        result = fraction_mismatched_phases(ŷ, y)
+        
+        # Expected analysis with ϵ = 0.5:
+        # All predictions match ground truth perfectly
+        # 0 mismatched phases out of 12 total predictions, so fraction should be 0.0
+        @test result ≈ 0.0
+        
+        # Test with different threshold
+        result_strict = fraction_mismatched_phases(ŷ, y, ϵ = 0.25)
+        
+        # Expected analysis with ϵ = 0.25:
+        # Column 1: phase 2 is mismatch (predicted true, actual false)
+        # Other columns match perfectly
+        # 1 mismatched phase out of 12 total, so fraction should be 1/12 ≈ 0.0833
+        @test result_strict ≈ 1.0/12.0
+
+        # Test with different data
+        ŷ_m = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
+                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                      0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
+        
+        result = fraction_mismatched_phases(ŷ_m, y)
+        @test result ≈ 1.0/12.0
+        
+        # Test edge case: all phases wrong
+        ŷ_wrong = Float32[0.1 0.1; 0.9 0.9]
+        y_wrong = BitMatrix([true true; false false])
+        result_all_wrong = fraction_mismatched_phases(ŷ_wrong, y_wrong)
+        @test result_all_wrong ≈ 1.0
+        
+    end
+end
 end
