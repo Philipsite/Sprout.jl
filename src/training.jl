@@ -1,16 +1,17 @@
 """
 Training loop
 """
-function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, n_epochs::Int; metrics::Vector{<:Function}, gpu_device::Union{Nothing, CUDADevice} = nothing)
+function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, max_epochs::Int;
+                    metrics::Vector{<:Function}, early_stopping_condition::Function = (val_loss) -> false, gpu_device::Union{Nothing, CUDADevice} = nothing, save_to_subdir::Union{Nothing, AbstractString} = nothing)
 
     # init NamedTuple for logged loss and metrics
     log_names = vcat([:batch_loss, :mean_loss, :val_loss], [nameof(m) for m in metrics])
-    log_vecs = vcat([Matrix{Float32}(undef, n_epochs, ceil(Int, size(loader.data[1])[2] / loader.batchsize)), Vector{Float32}(undef, n_epochs), Vector{Float32}(undef, n_epochs)],
-                    [Vector{Float32}(undef, n_epochs) for _ in metrics])
+    log_vecs = vcat([Matrix{Float32}(undef, max_epochs, ceil(Int, size(loader.data[1])[2] / loader.batchsize)), Vector{Float32}(undef, max_epochs), Vector{Float32}(undef, max_epochs)],
+                    [Vector{Float32}(undef, max_epochs) for _ in metrics])
     logs = NamedTuple{Tuple(log_names)}(log_vecs)
-
+    epoch_trained = 0
     # TRAINING
-    for epoch in ProgressBar(1:n_epochs)
+    for epoch in ProgressBar(1:max_epochs)
         loss_batches = Float32[]
         for xy_cpu in loader
             if !isnothing(gpu_device)
@@ -47,16 +48,32 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
             ŷ_val = model(x_val)
         end
 
-        logs.val_loss[epoch] = loss_f(ŷ_val, y_val)
+        val_loss = loss_f(ŷ_val, y_val)
+        logs.val_loss[epoch] = val_loss
 
         for m in metrics
             logs[nameof(m)][epoch] = m(ŷ_val, y_val)
         end
+
+        epoch_trained += 1
+
+        # if an early_stopping condition is given as kwarg, check
+        # default for early_stopping condition returns false > right-side of && never evaluated
+        early_stopping_condition(val_loss) && break
     end
 
     # All results of training should be save into one directory
-    dir = pwd() * "/sb21_sm_" * Dates.format(now(),"yyyyudd_HHMM")
-    mkdir(dir)
+    if isnothing(save_to_subdir)
+        dir = pwd() * "/sb21_sm_" * Dates.format(now(),"yyyyudd_HHMM")
+        mkdir(dir)
+    else
+        subdir = pwd() * "/" * save_to_subdir
+        if !isdir(subdir)
+            mkdir(subdir)
+        end
+        dir = pwd() * "/" * save_to_subdir * "/sb21_sm_" * Dates.format(now(),"yyyyudd_HHMM")
+        mkdir(dir)
+    end
 
     # save model
     # move to cpu
@@ -66,11 +83,13 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
 
     # save opt_state
     jldsave(dir * "/saved_opt.jld2"; opt_state)
-
+    
+    # trim the logs to the length of epoch_trained
+    logs_t = map(log_vector -> typeof(log_vector) <: Matrix ? log_vector[1:epoch_trained, :] : log_vector[1:epoch_trained], logs)
     # save log
-    jldsave(dir * "/log.jld2"; logs)
+    jldsave(dir * "/log.jld2"; logs_t)
 
-    return model, opt_state, logs, dir
+    return model, opt_state, logs_t, dir
 end
 
 
