@@ -17,6 +17,9 @@ export fraction_mismatched_asm, fraction_mismatched_phases
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
+include("hyper_parameter_tuning.jl")
+export create_model, run_hyperparam_tuning
+
 include("model.jl")
 export connection_reduced, connection_reduced_phys_params
 
