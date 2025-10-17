@@ -100,7 +100,7 @@ function generate_dataset(n::Int, filename_base::String;
 
     # write a CSV
     x_names = ["p_kbar", "t_c", oxides_in_out...]
-    y_names = [(phase_list .* "_vol")...,
+    y_names = [(phase_list .* "_mol_frac")...,
                # (phase_list .* "_rho")...,
                vcat([repeat([ss], 6) .* ("_" .* oxides_in_out)  for ss in SS]...)...,
                "bulk density", "bulk_modulus", "shear_modulus"]
