@@ -22,7 +22,7 @@ end
 """
 Test all possible combination of n_layers * n_neurons.
 """
-function run_hyperparam_tuning(n_layers::Integer, n_neurons::Integer, train_data::Tuple{<:AbstractArray, <:AbstractArray}, val_data::Tuple{<:AbstractArray, <:AbstractArray}, loss::Function, max_epochs::Integer, metrics::Vector{<:Function})
+function run_hyperparam_tuning(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, train_data::Tuple{<:AbstractArray, <:AbstractArray}, val_data::Tuple{<:AbstractArray, <:AbstractArray}, loss::Function, max_epochs::Integer, metrics::Vector{<:Function})
     subdir = "hyperparam_tuning" * Dates.format(now(),"yyyyudd_HHMM")
 
     min_val_loss = []
