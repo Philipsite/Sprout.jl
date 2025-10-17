@@ -2,7 +2,7 @@
 Training loop
 """
 function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, max_epochs::Int;
-                    metrics::Vector{<:Function}, early_stopping_condition::Function = (val_loss) -> false, gpu_device::Union{Nothing, CUDADevice} = nothing, save_to_subdir::Union{Nothing, AbstractString} = nothing)
+                    metrics::Vector{<:Function}, early_stopping_condition::Function = (val_loss) -> false, gpu_device::Union{Nothing, CUDADevice} = nothing, save_to_subdir::Union{Nothing, AbstractString} = nothing, show_progressbar::Bool = true)
 
     # init NamedTuple for logged loss and metrics
     log_names = vcat([:batch_loss, :mean_loss, :val_loss], [nameof(m) for m in metrics])
@@ -10,8 +10,15 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
                     [Vector{Float32}(undef, max_epochs) for _ in metrics])
     logs = NamedTuple{Tuple(log_names)}(log_vecs)
     epoch_trained = 0
+    
+    if show_progressbar
+        iter = ProgressBar(1:max_epochs)
+    else
+        iter = 1:max_epochs
+    end
+    
     # TRAINING
-    for epoch in ProgressBar(1:max_epochs)
+    for epoch in iter
         loss_batches = Float32[]
         for xy_cpu in loader
             if !isnothing(gpu_device)
