@@ -4,7 +4,7 @@ N_variable_components_in_SS_adjusted = N_variable_components_in_SS[[1:11...,13:e
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
 
-This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
+This function is used for models that only predict phases that are stable in at least one assemblage of the training generate_dataset,
 and only predicts the variable compositional variables for SS-phases.
 
 Including bulk rock physical params.
@@ -25,7 +25,7 @@ end
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
 
-This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
+This function is used for models that only predict phases that are stable in at least one assemblage of the training generate_dataset,
 and only predicts the variable compositional variables for SS-phases.
 
 Excluding bulk rock physical params.
