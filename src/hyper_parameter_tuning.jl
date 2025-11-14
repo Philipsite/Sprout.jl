@@ -25,9 +25,6 @@ Test all possible combination of n_layers * n_neurons.
 function run_hyperparam_tuning(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, train_data::Tuple{<:AbstractArray, <:AbstractArray}, val_data::Tuple{<:AbstractArray, <:AbstractArray}, loss::Function, max_epochs::Integer, metrics::Vector{<:Function})
     subdir = "hyperparam_tuning" * Dates.format(now(),"yyyyudd_HHMM")
 
-    min_val_loss = []
-    min_qasm_loss = []
-
     loader = Flux.DataLoader((train_data[1], train_data[2]), batchsize=100000, shuffle=true);
     INPUT_DIM = size(train_data[1])[1];
     OUTPUT_DIM = size(train_data[2])[1];
@@ -49,16 +46,8 @@ function run_hyperparam_tuning(n_layers::Vector{<:Integer}, n_neurons::Vector{<:
             println(file, "Number of layers:\t$n_l")
             println(file, "Number of neurons:\t$n_n")
         end
-
-        # push best val_loss/q_asm into array
-        push!(min_val_loss, minimum(logs.val_loss))
-        push!(min_qasm_loss, minimum(logs.loss_asm))
     end
-
-    min_val_loss = reshape(min_val_loss, (length(n_layers), length(n_neurons)))
-    min_qasm_loss = reshape(min_qasm_loss, (length(n_layers), length(n_neurons)))
-
-    return min_val_loss, min_qasm_loss
+    println("---TUNING COMPLETE---")
 end
 
 """
