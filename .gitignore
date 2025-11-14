@@ -8,3 +8,5 @@
 data/
 # saved models and logs
 sb21_sm_*
+hyperparam_tuning*
+screenlog.*
