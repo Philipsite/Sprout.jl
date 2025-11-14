@@ -60,7 +60,7 @@ function abs_rel_non_zero_deviation(ŷ, y; agg = mean)
     rel_abs_dev = []
     for (y_vec, ŷ_vec) = zip(eachcol(y), eachcol(ŷ))
         non_zero_idx = y_vec .!= 0.0
-    
+
         y_f = y_vec[non_zero_idx]
         ŷ_f = ŷ_vec[non_zero_idx]
 

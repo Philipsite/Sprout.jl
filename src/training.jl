@@ -10,13 +10,13 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
                     [Vector{Float32}(undef, max_epochs) for _ in metrics])
     logs = NamedTuple{Tuple(log_names)}(log_vecs)
     epoch_trained = 0
-    
+
     if show_progressbar
         iter = ProgressBar(1:max_epochs)
     else
         iter = 1:max_epochs
     end
-    
+
     # TRAINING
     for epoch in iter
         loss_batches = Float32[]
@@ -90,7 +90,7 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
 
     # save opt_state
     jldsave(dir * "/saved_opt.jld2"; opt_state)
-    
+
     # trim the logs to the length of epoch_trained
     logs_t = map(log_vector -> typeof(log_vector) <: Matrix ? log_vector[1:epoch_trained, :] : log_vector[1:epoch_trained], logs)
     # save log

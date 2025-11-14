@@ -3,7 +3,7 @@ N_variable_components_in_SS_adjusted = N_variable_components_in_SS[[1:11...,13:e
 
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-    
+
 This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
 and only predicts the variable compositional variables for SS-phases.
 
@@ -24,7 +24,7 @@ end
 
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-    
+
 This function is used for models that only predict phases that are stale in at least one asemblage of the training generate_dataset,
 and only predicts the variable compositional variables for SS-phases.
 
@@ -64,7 +64,7 @@ end
 
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-    
+
 This function is used for models that only predict variable variables for SS-phases.
 """
 function zz_connection_reduced_ss_comp(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
