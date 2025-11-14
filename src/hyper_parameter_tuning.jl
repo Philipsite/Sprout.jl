@@ -3,18 +3,18 @@ Create a flux model with a given number of (hidden) layers, and number of neuron
 """
 function create_model(n_layers::Integer, n_neurons::Integer, input_dim::Integer, output_dim::Integer)
     layers = []
-    
+
     # First layer (input to first hidden)
     push!(layers, Dense(input_dim => n_neurons, relu))
-    
+
     # Hidden layers
     for i in 2:n_layers
         push!(layers, Dense(n_neurons => n_neurons, relu))
     end
-    
+
     # Output layer
     push!(layers, Dense(n_neurons => output_dim, sigmoid))
-    
+
     return Chain(layers...)
 end
 
@@ -59,4 +59,52 @@ function run_hyperparam_tuning(n_layers::Vector{<:Integer}, n_neurons::Vector{<:
     min_qasm_loss = reshape(min_qasm_loss, (length(n_layers), length(n_neurons)))
 
     return min_val_loss, min_qasm_loss
+end
+
+"""
+Load the logs(::NamedTuples) of a hyperparameter tuning run into a matrix.
+
+The logged values can then be accessed from that `log_matrix` using getfield.(log_matrix, :KEY)
+"""
+function load_hyperparam_tuning_results(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector)
+    all_models_dir = readdir(dir, join=true)
+
+    log_matrix = Matrix{NamedTuple}(undef, length(n_layers), length(n_neurons))
+
+    logs = [load(all_models_dir[i] * "/log.jld2", "logs_t") for i in eachindex(all_models_dir)]
+    log_matrix = reshape(logs, (length(n_layers), length(n_neurons)))
+
+    return log_matrix
+end
+
+
+"""
+Benchmark the inference time of the models generated in a hyperparameter tuning run.
+"""
+function estimate_inference_time(dir, n_layers, n_neurons, x_val)
+    INPUT_DIM = size(x_val)[1]
+    OUTPUT_DIM = size(y_val)[1]
+
+    all_models_dir = readdir(dir, join=true)
+
+    inference_time_ms = []
+    hyperparams_setup = collect(Iterators.product(n_layers, n_neurons))
+
+    for i in eachindex(all_models_dir)
+        m = create_model(hyperparams_setup[i][1], hyperparams_setup[i][2], INPUT_DIM, OUTPUT_DIM)
+
+        model_state = JLD2.load(all_models_dir[i] * "/saved_model.jld2", "model_state")
+        Flux.loadmodel!(m, model_state)
+        # warm-up execution (trigger JIT)
+        _ = m(x_val)
+
+        res = @benchmark $m($x_val)
+        # convert to milliseconds (BenchmarkTools output in ns per default)
+        res_ms = median(res.times) / 1_000_000
+
+        push!(inference_time_ms, res_ms)
+    end
+
+    inference_time_ms = reshape(inference_time_ms, (length(n_layers), length(n_neurons)))
+    return inference_time_ms
 end
