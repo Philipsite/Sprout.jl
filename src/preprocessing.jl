@@ -1,6 +1,8 @@
-# Some phases are never stable for the training
-# Nepheline, Corundum, Post-Perovskite
-IDX_of_phases_never_stable = [5, 7, 19]
+# CONSTANT used within the pre-processing functions
+# Some phases are never stable for the P–T–BULK conditions considered:
+# Corundum, Post-Perovskite
+# these should not be considered by the surrogate.
+IDX_OF_PHASES_NEVER_STABLE = [7, 19]
 
 """
 Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
@@ -12,10 +14,10 @@ function preprocess_for_classifier(x_data::DataFrame, y_data::DataFrame)
     x = Matrix(Matrix{Float32}(x_data)')
 
     # set up indices of stable phases
-    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_of_phases_never_stable]
+    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_OF_PHASES_NEVER_STABLE]
 
     y = Matrix(Matrix{Float32}(y_data)')[idx_stable_phases,:]
-    # transform modes-submatrix into boolen (one-hot) matrix
+    # transform modes-submatrix into boolean (one-hot) matrix
     y = y .!= 0.0
 
     return x::Matrix, y::Union{Matrix, BitMatrix}
@@ -25,7 +27,7 @@ end
 """
 Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
 Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
-For the SS composition only variable components are exracted, e.g. no Si in Olivine as this is constant.
+For the SS composition only variable components are extracted, e.g. no Si in Olivine as this is constant.
 """
 function preprocess_for_regressor(x_data::DataFrame, y_data::DataFrame)
     x = Matrix(Matrix{Float32}(x_data)')
@@ -42,7 +44,7 @@ end
 """
 Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
 Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
-For the SS composition only variable components are exracted, e.g. no Si in Olivine as this is constant.
+For the SS composition only variable components are extracted, e.g. no Si in Olivine as this is constant.
 
 Extract modes + ss-composition only (no bulk rock physical params)
 """
@@ -59,13 +61,13 @@ end
 
 """
 Used within preprocess-functions.
-Set indices for the filterin.
+Set indices for the filtering.
 """
 function indices_of_stable_phases()
     # set up indices of stable phases
-    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_of_phases_never_stable]
+    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_OF_PHASES_NEVER_STABLE]
     # set up indices of compositional entries in SS that are variable, that belong to stable phases
-    IDX_of_SS_never_stable = [i for i in IDX_of_phases_never_stable if i > 7] .- 7
+    IDX_of_SS_never_stable = [i for i in IDX_OF_PHASES_NEVER_STABLE if i > 7] .- 7
     idx_SS_variable_and_stable = [i for i in IDX_of_variable_components_in_SS if i ∉ [k for j in IDX_of_SS_never_stable for k in (j-1)*6+1:j*6]]
 
     # correct to start at index 23
