@@ -4,7 +4,7 @@ using Reexport: @reexport
 using Flux, JLD2, CUDA, cuDNN
 using CSV, DataFrames, Statistics, Distributions, ProgressBars
 @reexport using MAGEMin_C
-using Base.Threads, Random, Dates
+using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie
 
 include("phases_sb21.jl")

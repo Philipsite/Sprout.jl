@@ -70,7 +70,7 @@ end
 """
 Benchmark the inference time of the models generated in a hyperparameter tuning run.
 """
-function estimate_inference_time(dir, n_layers, n_neurons, x_val)
+function estimate_inference_time(dir, n_layers, n_neurons, x_val, y_val)
     INPUT_DIM = size(x_val)[1]
     OUTPUT_DIM = size(y_val)[1]
 
