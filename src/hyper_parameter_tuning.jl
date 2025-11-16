@@ -56,7 +56,7 @@ Load the logs(::NamedTuples) of a hyperparameter tuning run into a matrix.
 The logged values can then be accessed from that `log_matrix` using getfield.(log_matrix, :KEY)
 """
 function load_hyperparam_tuning_results(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector)
-    all_models_dir = readdir(dir, join=true)
+    all_models_dir = [d for d in readdir(dir, join=true) if isdir(d)]
 
     log_matrix = Matrix{NamedTuple}(undef, length(n_layers), length(n_neurons))
 
