@@ -58,34 +58,35 @@ end
               0. 0. 1. 0.;
               0. 0. 0. 0.;
               1. 0. 0. 0.;
-              0. 1. 0. 0.]
-    
-    y_reg = ones(75, 4)
+              0. 1. 0. 0.;
+              0. 0. 0. 0.]
+
+    y_reg = ones(76, 4)
     y = connection_reduced_phys_params(y_clas, y_reg)
 
-    @test y[1:19, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
-    @test y[1:19, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.]
-    
+    @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
+    @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+
     y_test_ss_comp2 = zeros(53)
     y_test_ss_comp2[1:4]  .= 1.0
     y_test_ss_comp2[5:6] .= 1.0
     y_test_ss_comp2[9:10] .= 1.0
-    @test y[20:end-3, 4] == y_test_ss_comp2
+    @test y[21:end-3, 4] == y_test_ss_comp2
 
     # test if physical rock properties (last three entries) remain unaltered by the connection function
     @test y[end-2:end, 4] == [1., 1., 1.]
 
-    y_reg = ones(72, 4)
+    y_reg = ones(73, 4)
     y = connection_reduced(y_clas, y_reg)
 
-    @test y[1:19, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
-    @test y[1:19, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.]
-    
+    @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
+    @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+
     y_test_ss_comp2 = zeros(53)
     y_test_ss_comp2[1:4]  .= 1.0
     y_test_ss_comp2[5:6] .= 1.0
     y_test_ss_comp2[9:10] .= 1.0
-    @test y[20:end, 4] == y_test_ss_comp2
+    @test y[21:end, 4] == y_test_ss_comp2
 
 
     # --- THIS BLOCK TESTS ARCHIVED CONNECTION FUNCTIONS ----
@@ -166,13 +167,13 @@ end
     x, y = preprocess_for_classifier(x_data, y_data)
 
     @test x[:,2] ≈ [374.0, 2497.0, 0.4225897, 0.0597008, 0.0442537, 0.0640199, 0.4008087, 0.0086269]
-    @test y[:, 9] == Bool.([0,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0])
+    @test y[:, 9] == Bool.([0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0])
 
     x, y = preprocess_for_regressor(x_data, y_data)
 
     @test x[:,2] ≈ [374.0, 2497.0, 0.4225897, 0.0597008, 0.0442537, 0.0640199, 0.4008087, 0.0086269]
 
-    @test y[:,10] ≈ [0.0,0.0,0.01807800334603538,0.0,0.0,0.0,0.0,0.0,
+    @test y[:,10] ≈ [0.0,0.0,0.01807800334603538,0.0, 0.0, 0.0,0.0,0.0,0.0,
                     0.0,0.0,0.0,0.40019905077843004,0.0,0.0,0.5817229458755346,0.0,0.0,
                     0.0,0.0,
 
@@ -190,7 +191,7 @@ end
                     0.0,0.0,0.0,0.0,0.0,
                     0.0,0.0,0.0,0.0,
                     0.0,0.0,0.0,0.0,0.0,
-                    
+
                     3777.8538289099642,186.4584485037721,101.56898524712557]
 end
 
@@ -198,19 +199,19 @@ end
     # Test data setup
     # Create test predictions (continuous values 0-1)
     ŷ = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
-                0.3 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                0.3 0.7 0.1 0.8;   # phase 2: low, high, low, high
                 0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
-    
+
     # Create test ground truth (boolean)
     y = BitMatrix([true false true false;   # phase 1: present, absent, present, absent
                    false true false true;   # phase 2: absent, present, absent, present
                    true false false true])  # phase 3: present, absent, absent, present
-    
+
     @testset "fraction_mismatched_asm tests" begin
         # Test with default threshold (ϵ = 0.5)
         result = fraction_mismatched_asm(ŷ, y)
         @test result ≈ 0.0
-        
+
         # Test with different threshold
         result_strict = fraction_mismatched_asm(ŷ, y, ϵ = 0.25)
         # 1 out of 4 assemblages mismatch, so fraction should be 0.25
@@ -218,12 +219,12 @@ end
 
         # Test with different data
         ŷ_m = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
-                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high
                       0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
-        
+
         result = fraction_mismatched_asm(ŷ_m, y)
         @test result ≈ 0.25
-        
+
         # Test case: all predictions wrong
         ŷ_wrong = Float32[0.1 0.1; 0.9 0.9]
         y_wrong = BitMatrix([true true; false false])
@@ -231,19 +232,19 @@ end
         @test result_all_wrong ≈ 1.0
 
     end
-    
+
     @testset "fraction_mismatched_phases tests" begin
         # Test with default threshold (ϵ = 0.5)
         result = fraction_mismatched_phases(ŷ, y)
-        
+
         # Expected analysis with ϵ = 0.5:
         # All predictions match ground truth perfectly
         # 0 mismatched phases out of 12 total predictions, so fraction should be 0.0
         @test result ≈ 0.0
-        
+
         # Test with different threshold
         result_strict = fraction_mismatched_phases(ŷ, y, ϵ = 0.25)
-        
+
         # Expected analysis with ϵ = 0.25:
         # Column 1: phase 2 is mismatch (predicted true, actual false)
         # Other columns match perfectly
@@ -252,18 +253,18 @@ end
 
         # Test with different data
         ŷ_m = Float32[0.8 0.2 0.9 0.1;   # phase 1: high, low, high, low
-                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high  
+                      0.6 0.7 0.1 0.8;   # phase 2: low, high, low, high
                       0.6 0.1 0.2 0.9]   # phase 3: high, low, low, high
-        
+
         result = fraction_mismatched_phases(ŷ_m, y)
         @test result ≈ 1.0/12.0
-        
+
         # Test edge case: all phases wrong
         ŷ_wrong = Float32[0.1 0.1; 0.9 0.9]
         y_wrong = BitMatrix([true true; false false])
         result_all_wrong = fraction_mismatched_phases(ŷ_wrong, y_wrong)
         @test result_all_wrong ≈ 1.0
-        
+
     end
 end
 end

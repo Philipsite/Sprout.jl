@@ -6,6 +6,12 @@
 PP = ["qtz", "coe", "st", "ky", "neph", "capv", "co"];  # add "aMgO", "aFeO", "aAl2O3" ?
 SS = ["plg", "sp", "ol", "wa", "ri", "opx", "cpx", "hpcpx", "ak", "gtmj", "pv", "ppv", "cf", "mw", "nal"];
 
+# CONSTANT used within the pre-processing functions
+# Some phases are never stable for the P–T–BULK conditions considered:
+# Corundum, Post-Perovskite
+# these should not be considered by the surrogate.
+IDX_OF_PHASES_NEVER_STABLE = [7, 19]
+
 # --------------------------------------------------------------------
 # PP composition in molar fraction of oxides
 # following "Xoxides = ["SiO2"; "CaO"; "Al2O3"; "FeO"; "MgO"; "Na2O"]"

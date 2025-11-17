@@ -1,9 +1,3 @@
-# CONSTANT used within the pre-processing functions
-# Some phases are never stable for the P–T–BULK conditions considered:
-# Corundum, Post-Perovskite
-# these should not be considered by the surrogate.
-IDX_OF_PHASES_NEVER_STABLE = [7, 19]
-
 """
 Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
 Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
