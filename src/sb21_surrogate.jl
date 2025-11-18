@@ -18,7 +18,7 @@ include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
 include("hyper_parameter_tuning.jl")
-export create_model, run_hyperparam_tuning, load_hyperparam_tuning_results, estimate_inference_time
+export create_model, create_composite_model, run_hyperparam_tuning, load_hyperparam_tuning_results, estimate_inference_time
 
 include("model.jl")
 export connection_reduced, connection_reduced_phys_params

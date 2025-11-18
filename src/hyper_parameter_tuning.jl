@@ -20,6 +20,39 @@ end
 
 
 """
+Create a flux model with the general structure:
+
+```
+model = Parallel(CONNECTION_FUNCTION, CLASSIFIER_MODEL, Chain(
+    Dense(INPUT_DIM => N_NEURONS, relu),
+    ...
+    N_LAYERS
+    ...
+    Dense(N_NEURONS => OUTPUT_DIM, relu)
+))
+```
+
+with a given number of (hidden) layers, and number of neurons in these hidden layers.
+"""
+function create_composite_model(n_layers::Integer, n_neurons::Integer, input_dim::Integer, output_dim::Integer, connection_f::Function, m_classifier::T) where T<: Chain
+    layers = []
+
+    # First layer (input to first hidden)
+    push!(layers, Dense(input_dim => n_neurons, relu))
+
+    # Hidden layers
+    for i in 2:n_layers
+        push!(layers, Dense(n_neurons => n_neurons, relu))
+    end
+
+    # Output layer
+    push!(layers, Dense(n_neurons => output_dim, relu))
+
+    return Parallel(connection_f, m_classifier, Chain(layers...))
+end
+
+
+"""
 Test all possible combination of n_layers * n_neurons.
 """
 function run_hyperparam_tuning(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, train_data::Tuple{<:AbstractArray, <:AbstractArray}, val_data::Tuple{<:AbstractArray, <:AbstractArray}, loss::Function, max_epochs::Integer, metrics::Vector{<:Function})
