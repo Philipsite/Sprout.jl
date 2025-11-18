@@ -24,7 +24,7 @@ include("model.jl")
 export connection_reduced, connection_reduced_phys_params
 
 include("norm.jl")
-export Norm, MinMaxScaler, denorm
+export Norm, MinMaxScaler, denorm, inv_scaling
 
 include("phase_diagram.jl")
 export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram

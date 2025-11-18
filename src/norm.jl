@@ -27,8 +27,8 @@ end
 Min-Max scale data feature-wise
 """
 struct MinMaxScaler
-    min::Vector{Float32}
-    max::Vector{Float32}
+    min::VecOrMat
+    max::VecOrMat
 end
 function (mms::MinMaxScaler)(x::AbstractMatrix)
     x_n = (x .- mms.min) ./ (mms.max .- mms.min)
@@ -41,4 +41,9 @@ function MinMaxScaler(x::AbstractMatrix)
     min = Statistics.minimum(x, dims=2)
     max = Statistics.maximum(x, dims=2)
     return MinMaxScaler(min, max)
+end
+# inverse scaling
+function inv_scaling(mms::MinMaxScaler, x_n::AbstractMatrix)
+    x = x_n .* (mms.max .- mms.min) .+ mms.min
+    return x
 end
