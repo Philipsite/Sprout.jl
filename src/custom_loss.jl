@@ -49,22 +49,54 @@ function loss_vol(ŷ, y; agg = mean, ϵ = 1e-3)
     # check if a phase can be considered present (v > 0 or ϵ)
     p̂ = ŷ .> ϵ
     p = y .> 0
-    # phase consideed if present in either prediction or reference
+    # phase considered if present in either prediction or reference
     p = p .| p̂
 
     return agg(abs.(ŷ[p] .- y[p]))
 end
 
-# UNTESTED //TODO
-function abs_rel_non_zero_deviation(ŷ, y; agg = mean)
-    rel_abs_dev = []
-    for (y_vec, ŷ_vec) = zip(eachcol(y), eachcol(ŷ))
-        non_zero_idx = y_vec .!= 0.0
 
-        y_f = y_vec[non_zero_idx]
-        ŷ_f = ŷ_vec[non_zero_idx]
+#=====================================================================
+Additional metrics to evaluate the performance of the regressor model
+=====================================================================#
+"""
+Mean absolute error for non-zero y-values
+"""
+function mae_no_zeros(ŷ, y; agg = mean)
+    non_zero_idx = y .!= 0.0
 
-        push!(rel_abs_dev, agg(abs.(y_f .- ŷ_f) ./ y_f))
-    end
-    return agg(rel_abs_dev)
+    return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]))
+end
+
+"""
+Mean relative error for non-zero y-values
+"""
+function mre_no_zeros(ŷ, y; agg = mean)
+    non_zero_idx = y .!= 0.0
+
+    return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]) ./ y[non_zero_idx])
+end
+
+"""
+Mean absolute error treating correctly predicted zero y-values as trivial
+"""
+function mae_trivial_zeros(ŷ, y; agg = mean)
+    non_zero_idx_y = y .!= 0.0
+    non_zero_idx_ŷ = ŷ .!= 0.0
+
+    non_zero_idx = non_zero_idx_y .| non_zero_idx_ŷ
+
+    return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]))
+end
+
+"""
+Mean relative error treating correctly predicted zero y-values as trivial
+"""
+function mre_trivial_zeros(ŷ, y; agg = mean, ϵ=eps(Float32))
+    non_zero_idx_y = y .!= 0.0
+    non_zero_idx_ŷ = ŷ .!= 0.0
+
+    non_zero_idx = non_zero_idx_y .| non_zero_idx_ŷ
+
+    return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]) ./ max.(y[non_zero_idx], ϵ))
 end
