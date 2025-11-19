@@ -2,7 +2,8 @@
 Training loop
 """
 function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function, max_epochs::Int;
-                    metrics::Vector{<:Function}, early_stopping_condition::Function = (val_loss) -> false, gpu_device::Union{Nothing, CUDADevice} = nothing, save_to_subdir::Union{Nothing, AbstractString} = nothing, show_progressbar::Bool = true)
+                    metrics::Vector{<:Function}, early_stopping_condition::Function = (val_loss) -> false, lr_schedule = nothing,
+                    gpu_device::Union{Nothing, CUDADevice} = nothing, save_to_subdir::Union{Nothing, AbstractString} = nothing, show_progressbar::Bool = true)
 
     # init NamedTuple for logged loss and metrics
     log_names = vcat([:batch_loss, :mean_loss, :val_loss], [nameof(m) for m in metrics])
@@ -19,6 +20,12 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
 
     # TRAINING
     for epoch in iter
+        # Learning-rate scheduling
+        if !isnothing(lr_schedule)
+            eta = lr_schedule(epoch)
+            Flux.adjust!(opt_state, eta)
+        end
+
         loss_batches = Float32[]
         for xy_cpu in loader
             if !isnothing(gpu_device)

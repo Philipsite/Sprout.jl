@@ -1,8 +1,8 @@
 module sb21_surrogate
 
 using Reexport: @reexport
-using Flux, JLD2, CUDA, cuDNN
-using CSV, DataFrames, Statistics, Distributions, ProgressBars
+using Flux, ParameterSchedulers, CUDA, cuDNN
+using JLD2, CSV, DataFrames, Statistics, Distributions, ProgressBars
 @reexport using MAGEMin_C
 using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie
