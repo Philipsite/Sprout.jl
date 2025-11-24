@@ -19,6 +19,30 @@ function loss_asm(ŷ::VecOrMat{Float32}, y::BitMatrix; agg = mean, ϵ = 0.5)
     return agg(1 .- l ./ k)
 end
 
+
+"""
+Binary focal loss following the implemenation [Flux.jl](https://github.com/FluxML/Flux.jl/blob/461a1b670f15279f9251c6d627554abeac44a906/src/losses/functions.jl#L275-L318)
+
+Fixed error of focal loss returning NaN when ŷ -> 1.0 within the range of ϵ for Float32. This method uses clamp() instead of adding ϵ to ŷ (Flux.jl implemenation)
+"""
+function binary_focal_loss(ŷ, y; agg=mean, gamma=2, eps::Real=Flux.epseltype(ŷ))
+    γ = gamma isa Integer ? gamma : ofeltype(ŷ, gamma)
+    Flux.Losses._check_sizes(ŷ, y)
+
+    # Clamp to avoid log(0), negative values, or >1 values
+    ŷϵ = clamp.(ŷ, eps, 1 - eps)
+
+    # Standard p_t definition
+    p_t = y .* ŷϵ .+ (1 .- y) .* (1 .- ŷϵ)
+
+    ce = .-log.(p_t)
+    weight = (1 .- p_t) .^ γ
+    loss = weight .* ce
+
+    return agg(loss)
+end
+
+
 #=====================================================================
 Additional metrics to evaluate the performance of the classifier model
 =====================================================================#

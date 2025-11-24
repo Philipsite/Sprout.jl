@@ -12,6 +12,7 @@ export PP, PP_COMP, SS, SS_COMP, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_com
 
 include("custom_loss.jl")
 export loss_asm, loss_vol
+export binary_focal_loss
 export fraction_mismatched_asm, fraction_mismatched_phases
 export mae_no_zeros, mre_no_zeros, mae_trivial_zeros, mre_trivial_zeros
 
