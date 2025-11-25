@@ -1,5 +1,5 @@
 #
-# This file defines CONSTANTS that are used troughout the project:
+# This file defines CONSTANTS that are used throughout the project:
 # PP, SS, PP_COMP, SS_COMP, IDX_of_variable_components_in_SS
 #
 
@@ -11,6 +11,8 @@ SS = ["plg", "sp", "ol", "wa", "ri", "opx", "cpx", "hpcpx", "ak", "gtmj", "pv", 
 # Corundum, Post-Perovskite
 # these should not be considered by the surrogate.
 IDX_OF_PHASES_NEVER_STABLE = [7, 19]
+IDX_PP_NEVER_STABLE = IDX_OF_PHASES_NEVER_STABLE[IDX_OF_PHASES_NEVER_STABLE .<= 7]
+IDX_SS_NEVER_STABLE = IDX_OF_PHASES_NEVER_STABLE[IDX_OF_PHASES_NEVER_STABLE .> 7] .-7
 
 # --------------------------------------------------------------------
 # PP composition in molar fraction of oxides
@@ -24,13 +26,14 @@ capv = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0];
 co   = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 
 PP_COMP = vcat(eval.(Symbol.(PP))...);
+PP_COMP_adj = vcat(eval.(Symbol.(PP[[i for i in 1:7 if i ∉ IDX_PP_NEVER_STABLE]]))...);
 
 # --------------------------------------------------------------------
 # SS composition in molar fraction of oxides
 # following "Xoxides = ["SiO2"; "CaO"; "Al2O3"; "FeO"; "MgO"; "Na2O"]"
 
 # extract the component in each SS that is neither zero nor constant,
-# this is the only compisitional variable that must be predicted.
+# this is the only compositional variable that must be predicted.
 # All other molar fractions of the invariant components can be inserted
 # into the SS composition post prediction.
 idx_of_variable_components_in_SS = [];
@@ -45,7 +48,7 @@ function find_constant_components(em_comp)
     return findall(row -> length(unique(row)) == 1, eachrow(em_comp_mat))
 end
 
-# SS phases and their endmembers
+# SS phases and their end-members
 # Plagioclase
 # anorthite "Ca_1Al_2Si_2O_8"
 an = [2.0, 1.0, 1.0, 0.0, 0.0, 0.0];
@@ -283,13 +286,23 @@ push!(idx_of_constant_components_in_SS, find_constant_components([mnal, fnal, nn
 nal = zeros(6);
 nal[idx_of_constant_components_in_SS[end]] .= mnal[idx_of_constant_components_in_SS[end]];
 
+#=
+CONSTANTS used troughout the package
+=#
 # Adjust indices for concatenated vector of all SS phases
 IDX_of_variable_components_in_SS = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS)]...);
+IDX_of_variable_components_in_SS_adj = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS) if i ∉ IDX_SS_NEVER_STABLE]...);
+
 # Concatenate all SS compositions
 SS_COMP = vcat(eval.(Symbol.(SS))...);
+SS_COMP_adj = vcat(eval.(Symbol.(SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]]))...);
+
 # calculate the number of variable components per ss phase
 N_variable_components_in_SS = [length(v) for v in idx_of_variable_components_in_SS]
+N_variable_components_in_SS_adj = [length(v) for (i, v) in enumerate(idx_of_variable_components_in_SS) if i ∉ IDX_SS_NEVER_STABLE]
 
+# Set-up the indices of different outputs in the REG output vector
+IDX_phase_frac = 1:(length(PP) + length(SS) - length(IDX_OF_PHASES_NEVER_STABLE))
 
 # --------------------------------------------------------------------
 #= FROM MAGEMin_C (these are phases from the SB24 database that are not yet fully implemented in MAGEMin)

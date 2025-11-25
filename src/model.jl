@@ -1,10 +1,11 @@
-# Remove solid-solution phases that are never predicted to be stable from N_variable_components_in_SS
-idx_ss_never_stable = IDX_OF_PHASES_NEVER_STABLE[IDX_OF_PHASES_NEVER_STABLE .> 7]        # sb21 contains 7 pure phases!
-idx_ss_never_stable .-= 7                                                                # reset idx
-N_variable_components_in_SS_adjusted = [v for (i,v) in enumerate(N_variable_components_in_SS) if i ∉ idx_ss_never_stable]
+# THIS NOW DONE WITHIN phases_sb21
+# # Remove solid-solution phases that are never predicted to be stable from N_variable_components_in_SS
+# idx_ss_never_stable = IDX_OF_PHASES_NEVER_STABLE[IDX_OF_PHASES_NEVER_STABLE .> 7]        # sb21 contains 7 pure phases!
+# idx_ss_never_stable .-= 7                                                                # reset idx
+# N_variable_components_in_SS_adjusted = [v for (i,v) in enumerate(N_variable_components_in_SS) if i ∉ idx_ss_never_stable]
 
-# Set-up the indices of different outputs in the REG output vector
-IDX_phase_frac = 1:(length(PP) + length(SS) - length(IDX_OF_PHASES_NEVER_STABLE))
+# # Set-up the indices of different outputs in the REG output vector
+# IDX_phase_frac = 1:(length(PP) + length(SS) - length(IDX_OF_PHASES_NEVER_STABLE))
 
 """
 connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
@@ -18,7 +19,7 @@ function connection_reduced_phys_params(y_clas::T, y_reg::T) where {T <: Union{M
     # using @view to get a StridedArray and avoid Scalar indexing
     y_phase_frac = @view(y_reg[IDX_phase_frac, :]) .* y_clas
 
-    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adjusted, 1:length(y_clas[6:end, 1]))]...)
+    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adj, 1:length(y_clas[6:end, 1]))]...)
     y_ss_comp = @view(y_reg[IDX_phase_frac[end]+1:end-3, :]) .* ss_comp_asm
 
     y_phys_prop = @view(y_reg[end-2:end, :])
@@ -39,7 +40,7 @@ function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArr
     # using @view to get a StridedArray and avoid Scalar indexing
     y_phase_frac = @view(y_reg[IDX_phase_frac, :]) .* y_clas
 
-    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adjusted, 1:length(y_clas[6:end, 1]))]...)
+    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adj, 1:length(y_clas[6:end, 1]))]...)
     y_ss_comp = @view(y_reg[IDX_phase_frac[end]+1:end, :]) .* ss_comp_asm
     return vcat(y_phase_frac, y_ss_comp)
 end

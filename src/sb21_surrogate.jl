@@ -8,7 +8,7 @@ using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie
 
 include("phases_sb21.jl")
-export PP, PP_COMP, SS, SS_COMP, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS
+export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS, IDX_phase_frac
 
 include("custom_loss.jl")
 export loss_asm, loss_vol
