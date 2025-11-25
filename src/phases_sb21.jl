@@ -291,7 +291,7 @@ CONSTANTS used troughout the package
 =#
 # Adjust indices for concatenated vector of all SS phases
 IDX_of_variable_components_in_SS = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS)]...);
-IDX_of_variable_components_in_SS_adj = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS) if i ∉ IDX_SS_NEVER_STABLE]...);
+IDX_of_variable_components_in_SS_adj = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]])]...);
 
 # Concatenate all SS compositions
 SS_COMP = vcat(eval.(Symbol.(SS))...);
