@@ -292,11 +292,11 @@ end
                     0.0 0.0 0.1 0.1 0.1;
                     0.0 0.0 0.1 0.0 0.0]
 
-    @test mae_no_zeros(ŷ, y) ≈ 2/7 * 0.1
-    @test mre_no_zeros(ŷ, y) ≈ 2/7 * 1
+        @test mae_no_zeros(ŷ, y) ≈ 2/7 * 0.1
+        @test mre_no_zeros(ŷ, y) ≈ 2/7 * 1
 
-    @test mae_trivial_zeros(ŷ, y) ≈ 3/8 * 0.1
-    @test mre_trivial_zeros(ŷ, y) ≈ sum([1, 1, 0.1/eps(Float32), 0, 0, 0, 0, 0]) / 8
+        @test mae_trivial_zeros(ŷ, y) ≈ 3/8 * 0.1
+        @test mre_trivial_zeros(ŷ, y) ≈ sum([1, 1, 0.1/eps(Float32), 0, 0, 0, 0, 0]) / 8
     end
 end
 end
