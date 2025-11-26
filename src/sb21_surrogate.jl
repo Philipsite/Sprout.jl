@@ -1,6 +1,7 @@
 module sb21_surrogate
 
 using Reexport: @reexport
+using ChainRulesCore
 using Flux, ParameterSchedulers, CUDA, cuDNN
 using JLD2, CSV, DataFrames, Statistics, Distributions, ProgressBars
 @reexport using MAGEMin_C
@@ -23,6 +24,7 @@ include("hyper_parameter_tuning.jl")
 export create_model, create_composite_model, run_hyperparam_tuning, load_hyperparam_tuning_results, estimate_inference_time
 
 include("model.jl")
+export Out
 export connection_reduced, connection_reduced_phys_params
 
 include("norm.jl")

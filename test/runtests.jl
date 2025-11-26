@@ -1,5 +1,6 @@
 using Test
-using CSV, DataFrames
+using CSV, DataFrames, JLD2
+using Flux
 using sb21_surrogate
 
 @testset "sb21_surrogate" begin
@@ -39,105 +40,159 @@ using sb21_surrogate
 end
 
 @testset "model.jl" begin
-    # --- THIS BLOCK TESTS CONNECTION FUNCTIONS ----
-    y_clas = [1. 0. 1. 0.;
-              1. 0. 1. 0.;
-              1. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 1.;
-              0. 0. 0. 1.;
-              0. 0. 0. 0.;
-              0. 0. 0. 1.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 1. 0.;
-              0. 0. 0. 0.;
-              1. 0. 0. 0.;
-              0. 1. 0. 0.;
-              0. 0. 0. 0.]
+    @testset "connection functions" begin
+        # --- THIS BLOCK TESTS CONNECTION FUNCTIONS ----
+        y_clas = [1. 0. 1. 0.;
+                  1. 0. 1. 0.;
+                  1. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 1. 0.;
+                  0. 0. 0. 0.;
+                  1. 0. 0. 0.;
+                  0. 1. 0. 0.;
+                  0. 0. 0. 0.]
 
-    y_reg = ones(76, 4)
-    y = connection_reduced_phys_params(y_clas, y_reg)
+        y_reg = ones(76, 4)
+        y = connection_reduced_phys_params(y_clas, y_reg)
 
-    @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
-    @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+        @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
+        @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
 
-    y_test_ss_comp2 = zeros(53)
-    y_test_ss_comp2[1:4]  .= 1.0
-    y_test_ss_comp2[5:6] .= 1.0
-    y_test_ss_comp2[9:10] .= 1.0
-    @test y[21:end-3, 4] == y_test_ss_comp2
+        y_test_ss_comp2 = zeros(53)
+        y_test_ss_comp2[1:4]  .= 1.0
+        y_test_ss_comp2[5:6] .= 1.0
+        y_test_ss_comp2[9:10] .= 1.0
+        @test y[21:end-3, 4] == y_test_ss_comp2
 
-    # test if physical rock properties (last three entries) remain unaltered by the connection function
-    @test y[end-2:end, 4] == [1., 1., 1.]
+        # test if physical rock properties (last three entries) remain unaltered by the connection function
+        @test y[end-2:end, 4] == [1., 1., 1.]
 
-    y_reg = ones(73, 4)
-    y = connection_reduced(y_clas, y_reg)
+        y_reg = ones(73, 4)
+        y = connection_reduced(y_clas, y_reg)
 
-    @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
-    @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+        @test y[1:20, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.]
+        @test y[1:20, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
 
-    y_test_ss_comp2 = zeros(53)
-    y_test_ss_comp2[1:4]  .= 1.0
-    y_test_ss_comp2[5:6] .= 1.0
-    y_test_ss_comp2[9:10] .= 1.0
-    @test y[21:end, 4] == y_test_ss_comp2
+        y_test_ss_comp2 = zeros(53)
+        y_test_ss_comp2[1:4]  .= 1.0
+        y_test_ss_comp2[5:6] .= 1.0
+        y_test_ss_comp2[9:10] .= 1.0
+        @test y[21:end, 4] == y_test_ss_comp2
 
 
-    # --- THIS BLOCK TESTS ARCHIVED CONNECTION FUNCTIONS ----
-    y_clas = [1. 0. 1. 0.;
-              1. 0. 1. 0.;
-              1. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 1.;
-              0. 0. 0. 1.;
-              0. 0. 0. 0.;
-              0. 0. 0. 1.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              0. 0. 1. 0.;
-              0. 0. 0. 0.;
-              0. 0. 0. 0.;
-              1. 0. 0. 0.;
-              0. 1. 0. 0.]
+        # --- THIS BLOCK TESTS ARCHIVED CONNECTION FUNCTIONS ----
+        y_clas = [1. 0. 1. 0.;
+                  1. 0. 1. 0.;
+                  1. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 1.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 1. 0.;
+                  0. 0. 0. 0.;
+                  0. 0. 0. 0.;
+                  1. 0. 0. 0.;
+                  0. 1. 0. 0.]
 
-    y_reg = ones(112, 4)
-    y = sb21_surrogate.zz_connection(y_clas, y_reg)
-    @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
-    @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
-    @test y[23:end, 2] == vcat(repeat([0.], 6*14), ones(6))
-    @test y[23:end, 3] == vcat(repeat([0.], 6*10), ones(6), repeat([0.], 6*4))
+        y_reg = ones(112, 4)
+        y = sb21_surrogate.zz_connection(y_clas, y_reg)
+        @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
+        @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+        @test y[23:end, 2] == vcat(repeat([0.], 6*14), ones(6))
+        @test y[23:end, 3] == vcat(repeat([0.], 6*10), ones(6), repeat([0.], 6*4))
 
-    y_reg = ones(79, 4)
-    y = sb21_surrogate.zz_connection_reduced_ss_comp(y_clas, y_reg)
-    @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
-    @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
+        y_reg = ones(79, 4)
+        y = sb21_surrogate.zz_connection_reduced_ss_comp(y_clas, y_reg)
+        @test y[1:22, 1] == [1.; 1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.]
+        @test y[1:22, 3] == [1.; 1.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 0.; 1.; 0.; 0.; 0.; 0.]
 
-    y_test_ss_comp1 = zeros(57)
-    y_test_ss_comp1[36:39] .= 1.0
-    @test y[23:end, 3] == y_test_ss_comp1
-    # println(y[23:end, 3])
-    # println(y_test_ss_comp1)
+        y_test_ss_comp1 = zeros(57)
+        y_test_ss_comp1[36:39] .= 1.0
+        @test y[23:end, 3] == y_test_ss_comp1
+        # println(y[23:end, 3])
+        # println(y_test_ss_comp1)
 
-    y_test_ss_comp2 = zeros(57)
-    y_test_ss_comp2[1:4]  .= 1.0
-    y_test_ss_comp2[5:6] .= 1.0
-    y_test_ss_comp2[9:10] .= 1.0
-    @test y[23:end, 4] == y_test_ss_comp2
+        y_test_ss_comp2 = zeros(57)
+        y_test_ss_comp2[1:4]  .= 1.0
+        y_test_ss_comp2[5:6] .= 1.0
+        y_test_ss_comp2[9:10] .= 1.0
+        @test y[23:end, 4] == y_test_ss_comp2
 
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+    end
+    @testset "Out layer" begin
+        # test constructor
+        o1 = Out()
+
+        @test o1.indices_var_components_SS_in_χ == sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ 36
+        @test o1.comp_PP == reshape(PP_COMP_adj, :, 1)
+        @test size(o1.comp_PP) == (36, 1)
+        @test o1.comp_SS == reshape(SS_COMP_adj, :, 1)
+        @test size(o1.comp_SS) == (84, 1)
+        @test o1.χ == vcat(reshape(PP_COMP_adj, :, 1), reshape(SS_COMP_adj, :, 1))
+        @test size(o1.χ) == (36+84, 1)
+        @test size(o1.v) == (20, 1)
+
+        # test Out-call()
+        # dummy output as it might come form the model's previous layers.
+        x1 = Float32[0.0, 0.0, 0.038024735, 0.0, 0.0, 9.994377f-9, 0.0, 0.0, 0.0, 0.0, 0.7764461, 0.0, 3.415132f-12, 0.0, 0.0, 0.18756658, 0.0, 0.0, 3.338901f-11, 0.0,
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.6398548, 0.0, 0.0, 0.0, 0.0, 0.0, 3.681866f-31, 1.018683f-31, 3.5378945f-32, 0.0, 8.3480576f-32, 4.1437478f-32, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.44299254, 0.08428454, 0.113013886, 0.023898013, 0.34644812, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.8550148f-15, 6.387073f-14, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        test_v = reshape(x1[1:20], :, 1, 1)
+        PP_COMP_adj_ = reshape(PP_COMP_adj, :, 1, 1)
+        SS_COMP_adj_ = reshape(SS_COMP_adj, :, 1, 1)
+        SS_COMP_adj_[sb21_surrogate.IDX_of_variable_components_in_SS_adj, :, :] .= x1[20+1:end, :]
+        test_χ = reshape(vcat(PP_COMP_adj_, SS_COMP_adj_), 6, 20, :)
+
+        y_χ, y_v = o1(x1)
+        @test y_v == test_v
+        @test y_χ == test_χ
+
+        # test if the gradient is "propagated" correctly trough the layer
+        # the layer itself has no train-able parameters and should return a gradient of nothing
+        # set-up a regressor type model
+        m_classifier = Chain(
+            Dense(8 => 250, relu),
+            Dense(250 => 250, relu),
+            Dense(250 => 250, relu),
+            Dense(250 => 22-2, sigmoid)
+        )
+
+        model = create_composite_model(4, 250, 8, 73, connection_reduced, m_classifier)
+        model_state = JLD2.load("test_data/saved_model.jld2", "model_state");
+        Flux.loadmodel!(model, model_state)
+
+        model_incl_out = Chain(model, Out())
+
+        # dummy data
+        x = Float32[-0.1502987; -0.6998814; -1.5221112; -1.6160581; -1.1820495; -3.5919383; 1.5217316; -1.4510324;;]
+
+        g_m = gradient((m, x) -> m(x)[3],model, x)
+        g_m_o = gradient((o, x) -> o(x)[2][3], model_incl_out, x)
+
+        @test g_m[1]==g_m_o[1].layers[1]
+    end
 end
 
 @testset "norm.jl" begin

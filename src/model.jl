@@ -47,6 +47,97 @@ end
 
 
 #=
+Custom Flux.jl compatible output layer: Out
+
+This section defines a custom layers and the corresponding forward-pass + reverse-mode AD rules (rrule) for gradient-based optimisation
+=#
+struct Out{T}
+    comp_PP ::T
+    comp_SS ::T
+    indices_var_components_SS_in_χ::Vector{Int}
+
+    χ :: T
+    v :: T
+end
+# Constructor:
+function Out(; comp_PP::VecOrMat{Float32} = PP_COMP_adj, comp_SS::VecOrMat{Float32} = SS_COMP_adj)
+    comp_PP = reshape(comp_PP, :, 1)
+    comp_SS = reshape(comp_SS, :, 1)
+
+    full_comp = vcat(comp_PP, comp_SS)
+
+    indices_var_components_SS_in_χ = sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ length(PP_COMP_adj)
+
+    χ = vcat(comp_PP, comp_SS)
+    v = Matrix{Float32}(undef, length(IDX_phase_frac), size(full_comp)[2:end]...)
+    return Out(comp_PP, comp_SS, indices_var_components_SS_in_χ, χ, v)
+end
+Flux.@layer Out
+Flux.trainable(o::Out) = (;)
+
+
+"""
+Forward-call
+"""
+function Out_f(o::Out, x)
+    # inject predictions of variable SS components into χ
+    o.χ[o.indices_var_components_SS_in_χ] .= x[21:end, :]
+
+    # inject predictions of phase fractions
+    o.v .= x[1:20, :]
+
+    χ = reshape(o.χ, 6, Int(size(o.χ, 1) / 6), :)
+    v = reshape(o.v, 20, 1, :)
+
+    return χ, v
+end
+(o::Out)(x) = Out_f(o, x)
+
+"""
+Reverse-mode AD rule for (o::Out)(x)
+"""
+# //TODO - Make sure to double-check this....
+function ChainRulesCore.rrule(::typeof(Out_f), o::Out, x)
+    # ----- Forward pass -----
+    χ, v = Out_f(o, x)
+
+    function pullback(ȳ)
+        # ȳ = (ȳχ, ȳv)
+        ȳχ, ȳv = ȳ
+
+        # -----------------------------
+        # 1. Compute gradient wrt χ and v
+        # -----------------------------
+        # Reverse reshape
+        gχ_unreshaped = reshape(ȳχ, size(o.χ))
+        gv_unreshaped = reshape(ȳv, size(o.v))
+
+        # -----------------------------
+        # 2. Build gradient wrt x
+        # -----------------------------
+        gx = zero(x)
+
+        # v := reshape(o.v) :=
+        #   x[1:20, :]
+        gx[1:20, :] .= gv_unreshaped
+
+        # χ variable components :=
+        #   x[21:end, :]
+        var_idxs = o.indices_var_components_SS_in_χ
+        gx[21:end, :] .= gχ_unreshaped[var_idxs, :]
+
+        # -----------------------------
+        # 3. Return gradients
+        # -----------------------------
+        ∂o = NoTangent()   # your layer has no trainable parameters
+
+        return NoTangent(), ∂o, gx
+    end
+
+    return (χ, v), pullback
+end
+
+#=
 ARCHIVED CONNECTION FUNCTIONS
 
 archived: 24 Sept 2025
