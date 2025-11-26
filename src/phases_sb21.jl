@@ -25,8 +25,8 @@ neph = [0.5, 0.0, 0.25, 0.0, 0.0, 0.25];
 capv = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0];
 co   = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
 
-PP_COMP = vcat(eval.(Symbol.(PP))...);
-PP_COMP_adj = vcat(eval.(Symbol.(PP[[i for i in 1:7 if i ∉ IDX_PP_NEVER_STABLE]]))...);
+PP_COMP = Float32.(vcat(eval.(Symbol.(PP))...));
+PP_COMP_adj = Float32.(vcat(eval.(Symbol.(PP[[i for i in 1:7 if i ∉ IDX_PP_NEVER_STABLE]]))...));
 
 # --------------------------------------------------------------------
 # SS composition in molar fraction of oxides
@@ -294,8 +294,8 @@ IDX_of_variable_components_in_SS = vcat([(i-1)*6 .+ idx for (i, idx) in enumerat
 IDX_of_variable_components_in_SS_adj = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]])]...);
 
 # Concatenate all SS compositions
-SS_COMP = vcat(eval.(Symbol.(SS))...);
-SS_COMP_adj = vcat(eval.(Symbol.(SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]]))...);
+SS_COMP = Float32.(vcat(eval.(Symbol.(SS))...));
+SS_COMP_adj = Float32.(vcat(eval.(Symbol.(SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]]))...));
 
 # calculate the number of variable components per ss phase
 N_variable_components_in_SS = [length(v) for v in idx_of_variable_components_in_SS]
