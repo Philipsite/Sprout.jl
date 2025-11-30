@@ -11,6 +11,3 @@ sb21_sm_*
 hyperparam_tuning*
 screenlog.*
 
-# dev-scripts
-dev.jl
-dev_*
