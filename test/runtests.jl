@@ -145,14 +145,15 @@ end
         # test constructor
         o1 = Out()
 
-        @test o1.indices_var_components_SS_in_χ == sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ 36
+        # @test o1.indices_var_components_SS_in_χ == sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ 36
+        @test o1.indices_var_components_in_SS == sb21_surrogate.IDX_of_variable_components_in_SS_adj
         @test o1.comp_PP == reshape(PP_COMP_adj, :, 1)
         @test size(o1.comp_PP) == (36, 1)
         @test o1.comp_SS == reshape(SS_COMP_adj, :, 1)
         @test size(o1.comp_SS) == (84, 1)
-        @test o1.χ == vcat(reshape(PP_COMP_adj, :, 1), reshape(SS_COMP_adj, :, 1))
-        @test size(o1.χ) == (36+84, 1)
-        @test size(o1.v) == (20, 1)
+        # @test o1.χ == vcat(reshape(PP_COMP_adj, :, 1), reshape(SS_COMP_adj, :, 1))
+        # @test size(o1.χ) == (36+84, 1)
+        # @test size(o1.v) == (20, 1)
 
         # test Out-call()
         # dummy output as it might come form the model's previous layers.

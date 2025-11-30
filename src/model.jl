@@ -54,23 +54,16 @@ This section defines a custom layers and the corresponding forward-pass + revers
 struct Out{T}
     comp_PP ::T
     comp_SS ::T
-    indices_var_components_SS_in_χ::Vector{Int}
-
-    χ :: T
-    v :: T
+    indices_var_components_in_SS::Vector{Int}
 end
 # Constructor:
 function Out(; comp_PP::VecOrMat{Float32} = PP_COMP_adj, comp_SS::VecOrMat{Float32} = SS_COMP_adj)
     comp_PP = reshape(comp_PP, :, 1)
     comp_SS = reshape(comp_SS, :, 1)
 
-    full_comp = vcat(comp_PP, comp_SS)
+    indices_var_components_in_SS = sb21_surrogate.IDX_of_variable_components_in_SS_adj
 
-    indices_var_components_SS_in_χ = sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ length(PP_COMP_adj)
-
-    χ = vcat(comp_PP, comp_SS)
-    v = Matrix{Float32}(undef, length(IDX_phase_frac), size(full_comp)[2:end]...)
-    return Out(comp_PP, comp_SS, indices_var_components_SS_in_χ, χ, v)
+    return Out(comp_PP, comp_SS, indices_var_components_in_SS)
 end
 Flux.@layer Out
 Flux.trainable(o::Out) = (;)
@@ -80,15 +73,18 @@ Flux.trainable(o::Out) = (;)
 Forward-call
 """
 function Out_f(o::Out, x)
-    # inject predictions of variable SS components into χ
-    o.χ[o.indices_var_components_SS_in_χ] .= x[21:end, :]
+    x = ndims(x) == 1 ? reshape(x, :, 1) : x
+    batch_size = size(x, 2)
 
-    # inject predictions of phase fractions
-    o.v .= x[1:20, :]
+    comp_PP_mat = repeat(o.comp_PP, 1, batch_size)
+    comp_SS_mat = repeat(o.comp_SS, 1, batch_size)
 
-    χ = reshape(o.χ, 6, Int(size(o.χ, 1) / 6), :)
-    v = reshape(o.v, 20, 1, :)
+    comp_SS_injected = copy(comp_SS_mat)
+    comp_SS_injected[o.indices_var_components_in_SS, :] = x[21:end, :]
 
+    full_comp = vcat(comp_PP_mat, comp_SS_injected)
+    χ = reshape(full_comp, 6, Int(size(full_comp, 1) / 6), batch_size)
+    v = reshape(x[1:20, :], 20, 1, batch_size)
     return χ, v
 end
 (o::Out)(x) = Out_f(o, x)
@@ -102,35 +98,21 @@ function ChainRulesCore.rrule(::typeof(Out_f), o::Out, x)
     χ, v = Out_f(o, x)
 
     function pullback(ȳ)
-        # ȳ = (ȳχ, ȳv)
         ȳχ, ȳv = ȳ
 
-        # -----------------------------
-        # 1. Compute gradient wrt χ and v
-        # -----------------------------
-        # Reverse reshape
-        gχ_unreshaped = reshape(ȳχ, size(o.χ))
-        gv_unreshaped = reshape(ȳv, size(o.v))
+        batch_size = size(x, 2)
 
-        # -----------------------------
-        # 2. Build gradient wrt x
-        # -----------------------------
-        gx = zero(x)
+        gχ_unreshaped = reshape(ȳχ, size(χ,1)*size(χ,2), batch_size)
+        gv_unreshaped = reshape(ȳv, size(v,1), batch_size)
 
-        # v := reshape(o.v) :=
-        #   x[1:20, :]
+        gx = similar(x)
+        gx .= zero(eltype(gx))
         gx[1:20, :] .= gv_unreshaped
 
-        # χ variable components :=
-        #   x[21:end, :]
-        var_idxs = o.indices_var_components_SS_in_χ
-        gx[21:end, :] .= gχ_unreshaped[var_idxs, :]
+        # pick rows from gχ corresponding to variable SS components (indices are in full_comp)
+        gx[21:end, :] .= gχ_unreshaped[sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ 36, :]
 
-        # -----------------------------
-        # 3. Return gradients
-        # -----------------------------
-        ∂o = NoTangent()   # your layer has no trainable parameters
-
+        ∂o = NoTangent()   # layer has no trainable params
         return NoTangent(), ∂o, gx
     end
 
