@@ -11,6 +11,9 @@ using CairoMakie
 include("phases_sb21.jl")
 export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS, IDX_phase_frac
 
+include("preprocessing.jl")
+preprocess_data, one_hot_phase_stability
+
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
