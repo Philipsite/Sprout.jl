@@ -27,12 +27,12 @@ end
 
 """
 Takes DataFrame of Training/Validation/Test data, returns:
-- x    :: Matrix{Float32}     - Input features P [GPa], T [°C], bulk composition [molmol⁻¹]
-- 𝑣    :: Matrix{Float32}     - Phase fraction [molmol⁻¹]
-- 𝐗_ss :: Array{Float32, 3}   - Solid solution phase compositions [molmol⁻¹]
-— ρ    :: Vector{Float32}     - System densities
-- Κ    :: Vector{Float32}     - Bulk moduli
-- μ    :: Vector{Float32}     - Shear moduli
+- x    :: Array{Float32, 3} (Vec, 1, N)        - Input features P [GPa], T [°C], bulk composition [molmol⁻¹]
+- 𝑣    :: Array{Float32, 3} (Vec, 1, N)        - Phase fraction [molmol⁻¹]
+- 𝐗_ss :: Array{Float32, 3} (Matrix, N)        - Solid solution phase compositions [molmol⁻¹]
+— ρ    :: Array{Float32, 3} (Scalar, 1, N)     - System densities
+- Κ    :: Array{Float32, 3} (Scalar, 1, N)     - Bulk moduli
+- μ    :: Array{Float32, 3} (Scalar, 1, N)     - Shear moduli
 
 Applies the following filters:
 - filter observation containing NaN
@@ -46,19 +46,26 @@ function preprocess_data(x_data::DataFrame, y_data::DataFrame)
     # filter data points with NaNs (failed minimisations? > failed volume computation!)
     cols_no_nan = filter_NaN(x) .& filter_NaN(y)
 
+    # (1) INPUTS
     x = x[:, cols_no_nan]
-    y = y[:, cols_no_nan]
+    x = reshape(x, size(x, 1), 1, size(x, 2))
 
+    # (2) OUTPUTS
+    y = y[:, cols_no_nan]
     # filter the stable phases only
     idx_stable_phases, idx_stable_ss = indices_of_stable_phases()
 
     𝑣 = y[idx_stable_phases, :]
+    𝑣 = reshape(𝑣, size(𝑣, 1), 1, size(𝑣, 2))
     vec_ss = y[idx_stable_ss, :]
     𝐗_ss = reshape(vec_ss, 6, Int(size(vec_ss, 1) / 6), :)
     ρ = y[end - 2, :]
+    ρ = reshape(ρ, 1, 1, :)
     Κ = y[end - 1, :]
+    Κ = reshape(Κ, 1, 1, :)
     μ = y[end, :]
-    return x::Matrix{Float32}, 𝑣::Matrix{Float32}, 𝐗_ss::Array{Float32,3}, ρ::Vector{Float32}, Κ::Vector{Float32}, μ::Vector{Float32}
+    μ = reshape(μ, 1, 1, :)
+    return x::Array{Float32, 3}, 𝑣::Array{Float32,3}, 𝐗_ss::Array{Float32,3}, ρ::Array{Float32,3}, Κ::Array{Float32,3}, μ::Array{Float32,3}
 end
 
 

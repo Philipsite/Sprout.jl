@@ -19,24 +19,24 @@
     x, 𝑣, 𝐗_ss, ρ, Κ, μ = sb21_surrogate.preprocess_data(x_data, y_data)
 
     # check types
-    @test isa(x, Matrix{Float32})
-    @test isa(𝑣, Matrix{Float32})
+    @test isa(x, Array{Float32,3})
+    @test isa(𝑣, Array{Float32,3})
     @test isa(𝐗_ss, Array{Float32,3})
-    @test isa(ρ, Vector{Float32})
-    @test isa(Κ, Vector{Float32})
-    @test isa(μ, Vector{Float32})
+    @test isa(ρ, Array{Float32,3})
+    @test isa(Κ, Array{Float32,3})
+    @test isa(μ, Array{Float32,3})
 
     # check shapes > the 11th sample in the test dataset has NaNs and should be filtered out
-    @test size(x) == (8, 10)
-    @test size(𝑣) == (20, 10)
+    @test size(x) == (8, 1, 10)
+    @test size(𝑣) == (20, 1, 10)
     @test size(𝐗_ss) == (6, 14, 10)
-    @test length(ρ) == 10
-    @test length(Κ) == 10
-    @test length(μ) == 10
+    @test size(ρ) == (1, 1, 10)
+    @test size(Κ) == (1, 1, 10)
+    @test size(μ) == (1, 1, 10)
 
     # check specific values
-    @test x[:,2] == Float32[374.0, 2497.0, 0.4225897, 0.059700884, 0.0442537, 0.06401996, 0.40080875, 0.0086269975]
-    @test 𝑣[:,10] == Float32[0.0,0.0,0.01807800334603538,0.0, 0.0, 0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.40019905077843004,0.0,0.0,0.5817229458755346,0.0,0.0, 0.0,0.0]
+    @test x[:, 1, 2] == Float32[374.0, 2497.0, 0.4225897, 0.059700884, 0.0442537, 0.06401996, 0.40080875, 0.0086269975]
+    @test 𝑣[:, 1, 10] == Float32[0.0,0.0,0.01807800334603538,0.0, 0.0, 0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.40019905077843004,0.0,0.0,0.5817229458755346,0.0,0.0, 0.0,0.0]
     @test 𝐗_ss[:, :, 5] == Matrix{Float32}([0.0 0.0 0.0 0.0 0.0 0.0;
                                             0.0 0.0 0.0 0.0 0.0 0.0;
                                             0.3333333333333333 0.0 0.0 0.12171110340774004 0.5449555632589267 0.0;
