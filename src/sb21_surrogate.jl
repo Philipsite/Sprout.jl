@@ -11,30 +11,8 @@ using CairoMakie
 include("phases_sb21.jl")
 export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS, IDX_phase_frac
 
-include("custom_loss.jl")
-export loss_asm, loss_vol
-export binary_focal_loss
-export fraction_mismatched_asm, fraction_mismatched_phases
-export mae_no_zeros, mre_no_zeros, mae_trivial_zeros, mre_trivial_zeros
-
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
-
-include("hyper_parameter_tuning.jl")
-export create_model, create_composite_model, run_hyperparam_tuning, load_hyperparam_tuning_results, estimate_inference_time
-
-include("model.jl")
-export Out
-export connection_reduced, connection_reduced_phys_params
-
-include("norm.jl")
-export Norm, MinMaxScaler, denorm, inv_scaling
-
-include("phase_diagram.jl")
-export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram
-
-include("preprocessing.jl")
-export preprocess_for_classifier, preprocess_for_regressor, preprocess_for_regressor_modes_sscomp
 
 include("training.jl")
 export train_loop, post_training_plots
