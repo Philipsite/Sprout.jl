@@ -34,7 +34,7 @@ Takes DataFrame of Training/Validation/Test data, returns:
 - Κ    :: Vector{Float32}     - Bulk moduli
 - μ    :: Vector{Float32}     - Shear moduli
 
-Applies the foloowing filters:
+Applies the following filters:
 - filter observation containing NaN
 - only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
 
