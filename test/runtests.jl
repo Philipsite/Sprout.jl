@@ -8,5 +8,6 @@ using sb21_surrogate
 include("test_gen_data.jl")
 include("test_phases_sb21.jl")
 include("test_preprocessing.jl")
+include("test_norm.jl")
 
 end

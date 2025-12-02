@@ -14,6 +14,9 @@ export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_S
 include("preprocessing.jl")
 export preprocess_data, one_hot_phase_stability
 
+include("norm.jl")
+export Norm, denorm, MinMaxScaler, descale
+
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
