@@ -17,6 +17,9 @@ export preprocess_data, one_hot_phase_stability
 include("norm.jl")
 export Norm, denorm, MinMaxScaler, descale
 
+include("model.jl")
+export FC_SS, FC_SS_MASK, ReshapeLayer, InjectLayer, mask_𝐗, mask_𝑣
+
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 
