@@ -13,7 +13,7 @@ struct ReshapeLayer
 end
 Flux.@layer ReshapeLayer
 Flux.trainable(rl::ReshapeLayer) = (;)
-(rl::ReshapeLayer)(x::Array{Float32,3}) = reshape(x, rl.n, rl.m, :)
+(rl::ReshapeLayer)(x::Union{AbstractArray{Float32,3}, CuArray{Float32, 3}}) = reshape(x, rl.n, rl.m, :)
 
 
 """
@@ -23,15 +23,15 @@ E.g., Si in Olivine is always 1/3 molmol⁻¹.
 This layer uses the global constants FC_SS_MASK (boolean mask of fixed components in solid solutions) and FC_SS (fixed components values).
 """
 struct InjectLayer
-    var_mask :: Matrix{Float32}
-    fc_vals  :: Matrix{Float32}
+    var_mask :: AbstractArray
+    fc_vals  :: AbstractArray
 end
 function InjectLayer()
     return InjectLayer(FC_SS_MASK, FC_SS)
 end
 Flux.@layer InjectLayer
 Flux.trainable(il::InjectLayer) = (;)
-(il::InjectLayer)(x::Array{Float32,3}) = x .* il.var_mask .+ il.fc_vals
+(il::InjectLayer)(x::Union{AbstractArray{Float32,3}, CuArray{Float32, 3}}) = x .* il.var_mask .+ il.fc_vals
 
 
 """
