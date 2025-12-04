@@ -29,8 +29,7 @@
     @test x_scale.max ≈ [2.; 0.; 6.;;;]
 
     x_s = x_scale(x)
-    println(x_s[1, :, :])
-    @test x_s[1, :, :] ≈ Float32[0.0 1.0 0.5 0.0 0.0 0.0]
 
+    @test x_s[1, :, :] ≈ Float32[0.0 1.0 0.5 0.0 0.0 0.0]
     @test descale(x_scale, x_s) == x
 end
