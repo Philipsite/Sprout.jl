@@ -10,5 +10,6 @@ include("test_phases_sb21.jl")
 include("test_preprocessing.jl")
 include("test_norm.jl")
 include("test_model.jl")
+include("test_misfit.jl")
 
 end

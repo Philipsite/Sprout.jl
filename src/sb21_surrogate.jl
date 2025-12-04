@@ -3,7 +3,8 @@ module sb21_surrogate
 using Reexport: @reexport
 using ChainRulesCore
 using Flux, ParameterSchedulers, CUDA, cuDNN
-using JLD2, CSV, DataFrames, Statistics, Distributions, ProgressBars
+using Statistics
+using JLD2, CSV, DataFrames, Distributions, ProgressBars
 @reexport using MAGEMin_C
 using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie
@@ -19,6 +20,9 @@ export Norm, denorm, MinMaxScaler, descale
 
 include("model.jl")
 export FC_SS, FC_SS_MASK, ReshapeLayer, InjectLayer, mask_𝐗, mask_𝑣
+
+include("misfit.jl")
+export misfit
 
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
