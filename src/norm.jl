@@ -3,8 +3,8 @@
 Normalise data feature-wise
 """
 struct Norm
-    mean::Array{Float32, 3}
-    std ::Array{Float32, 3}
+    mean::Union{Array{Float32, 3}, CuArray{Float32, 3}}
+    std ::Union{Array{Float32, 3}, CuArray{Float32, 3}}
 end
 function Norm(x::AbstractArray)
     mean = Statistics.mean(x, dims=ndims(x))
@@ -30,8 +30,8 @@ end
 Min-Max scale data feature-wise
 """
 struct MinMaxScaler
-    min::Array{Float32, 3}
-    max::Array{Float32, 3}
+    min::Union{Array{Float32, 3}, CuArray{Float32, 3}}
+    max::Union{Array{Float32, 3}, CuArray{Float32, 3}}
 end
 function MinMaxScaler(x::AbstractArray)
     min = Statistics.minimum(x, dims=ndims(x))
