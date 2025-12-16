@@ -86,8 +86,8 @@
           @test head_X isa Chain
           @test length(head_X) == 4
           @test head_X[1] isa Dense && size(head_X[1].weight) == (64, 64) && head_X[1].σ === relu
-          @test head_X[2] isa Dense && size(head_X[2].weight) == (6*20, 64)
-          @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 20
+          @test head_X[2] isa Dense && size(head_X[2].weight) == (6*14, 64)
+          @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 14
           @test head_X[4] isa InjectLayer
 
     end
