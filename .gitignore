@@ -6,6 +6,9 @@
 
 # data
 data/
+!examples/data/
+!examples/data/**
+
 # saved models and logs
 sb21_sm_*
 hyperparam_tuning*

@@ -33,5 +33,6 @@ export train_loop, post_training_plots
 
 include("hyperparameter_tuning.jl")
 export hpt_classifier, hpt_regressor_pretrained_classifier, hpt_regressor_common_backbone
+export load_hyperparam_tuning_results
 
 end

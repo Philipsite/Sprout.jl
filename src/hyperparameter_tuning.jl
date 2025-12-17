@@ -30,7 +30,7 @@ function hpt_classifier(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer
     OUTPUT_DIM = size(train_data[2])[1];
 
     for (n_l, n_n) in ProgressBar(Iterators.product(n_layers, n_neurons))
-        model = create_model(n_l, n_n, INPUT_DIM, OUTPUT_DIM) |> gpu_device()
+        model = create_classifier_model(n_l, n_n, INPUT_DIM, OUTPUT_DIM) |> gpu_device()
         opt_state = Flux.setup(Flux.Adam(0.001), model)
 
         # setup early_stopping_condition
