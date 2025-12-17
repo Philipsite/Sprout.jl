@@ -31,4 +31,7 @@ export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 include("training.jl")
 export train_loop, post_training_plots
 
+include("hyperparameter_tuning.jl")
+export hpt_classifier, hpt_regressor_pretrained_classifier, hpt_regressor_common_backbone
+
 end
