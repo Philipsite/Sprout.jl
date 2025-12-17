@@ -11,6 +11,7 @@
 
     # test sb21_surrogate.one_hot_phase_stability
     @test sb21_surrogate.one_hot_phase_stability(Float32[0.0 0.2; 0.5 0.0]) == Bool[false true; true false]
+    @test sb21_surrogate.one_hot_phase_stability(Float32[0.0; 0.8; 0.2; 0.0; 0.0;;; 1.0; 0.0; 0.0; 0.0; 0.0;;; 0.0; 0.0; 0.0; 0.1; 0.9;;; 0.0; 0.0; 1.0; 0.0; 0.0]) == Bool[false; true; true; false; false;;; true; false; false; false; false;;; false; false; false; true; true;;; false; false; true; false; false]
 
     # test sb21_surrogate.preprocess_data
     x_data = CSV.read("test_data/sb21_22Sep25_t_x.csv", DataFrame)

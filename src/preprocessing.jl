@@ -72,6 +72,6 @@ end
 """
 Converts phase fraction matrix to one-hot encoded phase stability matrix.
 """
-function one_hot_phase_stability(𝑣::Matrix{Float32})
+function one_hot_phase_stability(𝑣::Array{Float32})
     return 𝑣 .!= 0.0
 end
