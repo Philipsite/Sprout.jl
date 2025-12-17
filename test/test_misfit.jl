@@ -1,12 +1,37 @@
 
 @testset "misfit.jl" begin
     @testset "loss_asm" begin
-        ŷ = Float32[0.9 0.1 0.8; 0.4 0.6 0.2]
-        y = Float32[0.0 0.0 1.0; 0.0 1.0 0.0]
+        ŷ = Float32[0.9; 0.1; 0.8;;; 0.4; 0.6; 0.2]
+        y = Bool[0.0; 0.0; 1.0;;; 0.0; 1.0; 0.0]
 
         loss = misfit.loss_asm(ŷ, y; ϵ=0.5)
-        @test loss ≈ 0.33333334f0
+        @test loss ≈ 0.25
     end
+
+    @testset "binary_focal_loss" begin
+        ŷ = Float32[0.9; 0.1; 0.8;;; 0.4; 0.6; 0.2]
+        y = Bool[0.0; 0.0; 1.0;;; 0.0; 1.0; 0.0]
+
+        loss = misfit.binary_focal_loss(ŷ, y; gamma=2)
+        @test loss ≈ 0.34124
+    end
+
+    @testset "fraction_mismatched_asm" begin
+        ŷ = Float32[0.9; 0.1; 0.8;;; 0.4; 0.6; 0.2;;; 0.6; 0.7; 0.8]
+        y = Bool[0.0; 0.0; 1.0;;; 0.0; 1.0; 0.0;;; 1.0; 1.0; 1.0]
+
+        frac = misfit.fraction_mismatched_asm(ŷ, y; ϵ=0.5)
+        @test frac ≈ 1/3
+    end
+
+    @testset "fraction_mismatched_phases" begin
+        ŷ = Float32[0.9; 0.1; 0.8;;; 0.4; 0.6; 0.2;;; 0.6; 0.7; 0.8]
+        y = Bool[0.0; 0.0; 1.0;;; 0.0; 1.0; 0.0;;; 1.0; 1.0; 1.0]
+
+        frac = misfit.fraction_mismatched_phases(ŷ, y; ϵ=0.5)
+        @test frac ≈ 1/9
+    end
+
     @testset "non-zero absolute/relative deviation" begin
         y = Float32[0.0 0.0 0.0 0.0 0.0;
                     0.0 0.0 0.0 0.0 0.0;

@@ -9,16 +9,17 @@ where `ŷ` is the model prediction, `y` is the ground truth, `agg` is an aggrega
 """
 module misfit
 using Statistics
+using Flux
 #=====================================================================
 (1) Misfit metrics to evaluate the performance of the classifier model
 =====================================================================#
-#//TODO - test this function
+
 """
 Q_asm loss function defined as (1 - Q_asm), where Q_asm is the assemblage quality factor defined in [Duesterhoeft, E. & Lanari, P. (2020)](https://doi.org/10.1111/jmg.12538).
 """
-function loss_asm(ŷ::T, y::T; agg = mean, ϵ = 0.5) where T <: AbstractArray{Float32}
+function loss_asm(ŷ::T1, y::T2; agg = mean, ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
     p̂ = ŷ .> ϵ
-    p = y .> 0
+    p = y
     # total number of present phases
     k = sum(p̂ .| p, dims=1)
     # number of matching phases
@@ -27,13 +28,13 @@ function loss_asm(ŷ::T, y::T; agg = mean, ϵ = 0.5) where T <: AbstractArray{Fl
     return agg(1 .- l ./ k)
 end
 
-#//TODO - test this function
+
 """
 Binary focal loss following the implementation [Flux.jl](https://github.com/FluxML/Flux.jl/blob/461a1b670f15279f9251c6d627554abeac44a906/src/losses/functions.jl#L275-L318)
 
 Fixed error of focal loss returning NaN when ŷ -> 1.0 within the range of ϵ for Float32. This method uses clamp() instead of adding ϵ to ŷ (Flux.jl implemenation)
 """
-function binary_focal_loss(ŷ::T, y::T; agg=mean, gamma=2, eps::Real=Flux.epseltype(ŷ)) where T <: AbstractArray{Float32}
+function binary_focal_loss(ŷ::T1, y::T2; agg=mean, gamma=2, eps::Real=Flux.epseltype(ŷ)) where {T1 <: AbstractArray{Float32}, T2 <: Union{AbstractArray{Bool}, AbstractArray{Float32}}}
     γ = gamma isa Integer ? gamma : ofeltype(ŷ, gamma)
     Flux.Losses._check_sizes(ŷ, y)
 
@@ -50,11 +51,11 @@ function binary_focal_loss(ŷ::T, y::T; agg=mean, gamma=2, eps::Real=Flux.epselt
     return agg(loss)
 end
 
-#//TODO - test this function
+
 """
 Fraction of a batch of data, for which the assemblage is off by one or more phase(s).
 """
-function fraction_mismatched_asm(ŷ::T, y::T; ϵ = 0.5) where T <: AbstractArray{Float32}
+function fraction_mismatched_asm(ŷ::T1, y::T2; ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
     p̂ = ŷ .> ϵ
     p = y
     mismatch = p̂ .!= p
@@ -62,11 +63,11 @@ function fraction_mismatched_asm(ŷ::T, y::T; ϵ = 0.5) where T <: AbstractArray
     return sum(sum(mismatch, dims=1) .!= 0) / size(p)[end]
 end
 
-#//TODO - test this function
+
 """
 Fraction of phases of a batch of data that are not predicted correctly.
 """
-function fraction_mismatched_phases(ŷ::T, y::T; ϵ = 0.5) where T <: AbstractArray{Float32}
+function fraction_mismatched_phases(ŷ::T1, y::T2; ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
     p̂ = ŷ .> ϵ
     p = y
     mismatch = p̂ .!= p
