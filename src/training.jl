@@ -35,9 +35,19 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
             end
 
             # compute loss, let Zygote watch the gradient
-            loss, grads = Flux.withgradient(model) do m
-                ŷ = m(x)
-                loss_f(ŷ, y)
+            if hasmethod(loss_f, Tuple{Any,Any,Any})
+                loss, grads = Flux.withgradient(model) do m
+                    ŷ = m(x)
+                    loss_f(ŷ, y, x)
+                end
+            
+            elseif hasmethod(loss_f, Tuple{Any,Any})
+                loss, grads = Flux.withgradient(model) do m
+                    ŷ = m(x)
+                    loss_f(ŷ, y)
+                end
+            else
+                error("loss_f with not supported for a function with this number of arguments")
             end
 
             # update model params and opt_state
@@ -57,15 +67,26 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
         y_val = val_data[2]
 
         if !isnothing(gpu_device)
-            ŷ_val = model(x_val |> gpu_device) |> cpu
+            ŷ_val = model(x_val |> gpu_device)
+            if hasmethod(loss_f, Tuple{Any,Any,Any})
+                val_loss = loss_f(ŷ_val, y_val|> gpu_device, x_val |> gpu_device) |> cpu
+            elseif hasmethod(loss_f, Tuple{Any,Any})
+                val_loss = loss_f(ŷ_val, y_val|> gpu_device) |> cpu
+            end
+
         else
             ŷ_val = model(x_val)
+            if hasmethod(loss_f, Tuple{Any,Any,Any})
+                val_loss = loss_f(ŷ_val, y_val, x_val)
+            elseif hasmethod(loss_f, Tuple{Any,Any})
+                val_loss = loss_f(ŷ_val, y_val)
+            end
         end
 
-        val_loss = loss_f(ŷ_val, y_val)
         logs.val_loss[epoch] = val_loss
 
         for m in metrics
+            ŷ_val = model(x_val |> gpu_device) |> cpu 
             logs[nameof(m)][epoch] = m(ŷ_val, y_val)
         end
 
