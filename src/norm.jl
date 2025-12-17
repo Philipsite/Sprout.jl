@@ -1,49 +1,52 @@
+
 """
 Normalise data feature-wise
 """
 struct Norm
-    mean::VecOrMat
-    std ::VecOrMat
+    mean::Union{Array{Float32, 3}, CuArray{Float32, 3}}
+    std ::Union{Array{Float32, 3}, CuArray{Float32, 3}}
 end
-function (n1::Norm)(x::AbstractMatrix)
+function Norm(x::AbstractArray)
+    mean = Statistics.mean(x, dims=ndims(x))
+    std = Statistics.std(x, dims=ndims(x))
+    return Norm(mean, std)
+end
+
+function (n1::Norm)(x::AbstractArray)
     x_n = (x .- n1.mean) ./ n1.std
     x_n[isnan.(x_n)] .= 0
 
     return x_n
 end
 
-function Norm(x::AbstractMatrix)
-    mean = Statistics.mean(x, dims=2)
-    std = Statistics.std(x, dims=2)
-    return Norm(mean, std)
-end
 # de-normalise call
-function denorm(n::Norm, x_n::AbstractMatrix)
+function denorm(n::Norm, x_n::AbstractArray)
     x = x_n .* n.std .+ n.mean
     return x
 end
+
 
 """
 Min-Max scale data feature-wise
 """
 struct MinMaxScaler
-    min::VecOrMat
-    max::VecOrMat
+    min::Union{Array{Float32, 3}, CuArray{Float32, 3}}
+    max::Union{Array{Float32, 3}, CuArray{Float32, 3}}
 end
-function (mms::MinMaxScaler)(x::AbstractMatrix)
-    x_n = (x .- mms.min) ./ (mms.max .- mms.min)
-    x_n[isnan.(x_n)] .= 0
-
-    return x_n
-end
-
-function MinMaxScaler(x::AbstractMatrix)
-    min = Statistics.minimum(x, dims=2)
-    max = Statistics.maximum(x, dims=2)
+function MinMaxScaler(x::AbstractArray)
+    min = Statistics.minimum(x, dims=ndims(x))
+    max = Statistics.maximum(x, dims=ndims(x))
     return MinMaxScaler(min, max)
 end
-# inverse scaling
-function inv_scaling(mms::MinMaxScaler, x_n::AbstractMatrix)
-    x = x_n .* (mms.max .- mms.min) .+ mms.min
+
+function (mms::MinMaxScaler)(x::AbstractArray)
+    x_s = (x .- mms.min) ./ (mms.max .- mms.min)
+    x_s = replace(x_s, NaN32 => 0)
+    return x_s
+end
+
+# invert scaling
+function descale(mms::MinMaxScaler, x_s::AbstractArray)
+    x = x_s .* (mms.max .- mms.min) .+ mms.min
     return x
 end

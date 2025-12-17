@@ -1,55 +1,9 @@
-"""
-Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
-Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
-
-This method (for_classifier) generate a boolean y-matrix with assemblage vectors as entries.
-"""
-function preprocess_for_classifier(x_data::DataFrame, y_data::DataFrame)
-    x = Matrix(Matrix{Float32}(x_data)')
-
-    # set up indices of stable phases
-    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_OF_PHASES_NEVER_STABLE]
-
-    y = Matrix(Matrix{Float32}(y_data)')[idx_stable_phases,:]
-    # transform modes-submatrix into boolean (one-hot) matrix
-    y = y .!= 0.0
-
-    return x::Matrix, y::Union{Matrix, BitMatrix}
-end
-
 
 """
-Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
-Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
-For the SS composition only variable components are extracted, e.g. no Si in Olivine as this is constant.
+Returns indices of data points that do not contain NaN values.
 """
-function preprocess_for_regressor(x_data::DataFrame, y_data::DataFrame)
-    x = Matrix(Matrix{Float32}(x_data)')
-
-    idx_stable_phases, idx_SS_variable_and_stable = indices_of_stable_phases()
-
-    n_features = size(y_data, 2)
-    y = Matrix(Matrix{Float32}(y_data)')[[idx_stable_phases..., idx_SS_variable_and_stable..., n_features-2, n_features-1, n_features],:]
-
-    return x::Matrix, y::Matrix
-end
-
-
-"""
-Takes DataFrame of Training/Validation/Test data, returns a Matrix with each vector (vector of features) being an independent datapoint.
-Filters to only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
-For the SS composition only variable components are extracted, e.g. no Si in Olivine as this is constant.
-
-Extract modes + ss-composition only (no bulk rock physical params)
-"""
-function preprocess_for_regressor_modes_sscomp(x_data::DataFrame, y_data::DataFrame)
-    x = Matrix(Matrix{Float32}(x_data)')
-
-    idx_stable_phases, idx_SS_variable_and_stable = indices_of_stable_phases()
-
-    y = Matrix(Matrix{Float32}(y_data)')[[idx_stable_phases..., idx_SS_variable_and_stable...],:]
-
-    return x::Matrix, y::Matrix
+function filter_NaN(data::Matrix)
+    return [!any(isnan, data[:, j]) for j in 1:size(data, 2)]
 end
 
 
@@ -58,14 +12,66 @@ Used within preprocess-functions.
 Set indices for the filtering.
 """
 function indices_of_stable_phases()
-    # set up indices of stable phases
-    idx_stable_phases = [i for i in 1:22 if i ∉ IDX_OF_PHASES_NEVER_STABLE]
-    # set up indices of compositional entries in SS that are variable, that belong to stable phases
-    IDX_of_SS_never_stable = [i for i in IDX_OF_PHASES_NEVER_STABLE if i > 7] .- 7
-    idx_SS_variable_and_stable = [i for i in IDX_of_variable_components_in_SS if i ∉ [k for j in IDX_of_SS_never_stable for k in (j-1)*6+1:j*6]]
+    # set up indices of stable phases > to extract phase fractions
+    n_phases = length(PP) + length(SS)
+    idx_stable_phases = [i for i in 1:n_phases if i ∉ IDX_OF_PHASES_NEVER_STABLE]
 
-    # correct to start at index 23
-    idx_SS_variable_and_stable .+= 22
+    # setup indices of stable solid solution components > to extract solid solution compositions
+    # offset by number of phases
+    idx_stable_ss = 1:(length(SS)*6)
+    idx_stable_ss = [i for i in idx_stable_ss if i ∉ [6 * k + j for k in sb21_surrogate.IDX_SS_NEVER_STABLE for j in 1:6]] .+ n_phases
 
-    return idx_stable_phases, idx_SS_variable_and_stable
+    return idx_stable_phases, idx_stable_ss
+end
+
+
+"""
+Takes DataFrame of Training/Validation/Test data, returns:
+- x    :: Array{Float32, 3} (Vec, 1, N)        - Input features P [GPa], T [°C], bulk composition [molmol⁻¹]
+- 𝑣    :: Array{Float32, 3} (Vec, 1, N)        - Phase fraction [molmol⁻¹]
+- 𝐗_ss :: Array{Float32, 3} (Matrix, N)        - Solid solution phase compositions [molmol⁻¹]
+— ρ    :: Array{Float32, 3} (Scalar, 1, N)     - System densities
+- Κ    :: Array{Float32, 3} (Scalar, 1, N)     - Bulk moduli
+- μ    :: Array{Float32, 3} (Scalar, 1, N)     - Shear moduli
+
+Applies the following filters:
+- filter observation containing NaN
+- only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
+
+"""
+function preprocess_data(x_data::DataFrame, y_data::DataFrame)
+    x = Matrix(Matrix{Float32}(x_data)')
+    y = Matrix((Matrix{Float32}(y_data))')
+
+    # filter data points with NaNs (failed minimisations? > failed volume computation!)
+    cols_no_nan = filter_NaN(x) .& filter_NaN(y)
+
+    # (1) INPUTS
+    x = x[:, cols_no_nan]
+    x = reshape(x, size(x, 1), 1, size(x, 2))
+
+    # (2) OUTPUTS
+    y = y[:, cols_no_nan]
+    # filter the stable phases only
+    idx_stable_phases, idx_stable_ss = indices_of_stable_phases()
+
+    𝑣 = y[idx_stable_phases, :]
+    𝑣 = reshape(𝑣, size(𝑣, 1), 1, size(𝑣, 2))
+    vec_ss = y[idx_stable_ss, :]
+    𝐗_ss = reshape(vec_ss, 6, Int(size(vec_ss, 1) / 6), :)
+    ρ = y[end - 2, :]
+    ρ = reshape(ρ, 1, 1, :)
+    Κ = y[end - 1, :]
+    Κ = reshape(Κ, 1, 1, :)
+    μ = y[end, :]
+    μ = reshape(μ, 1, 1, :)
+    return x::Array{Float32, 3}, 𝑣::Array{Float32,3}, 𝐗_ss::Array{Float32,3}, ρ::Array{Float32,3}, Κ::Array{Float32,3}, μ::Array{Float32,3}
+end
+
+
+"""
+Converts phase fraction matrix to one-hot encoded phase stability matrix.
+"""
+function one_hot_phase_stability(𝑣::Array{Float32})
+    return 𝑣 .!= 0.0
 end

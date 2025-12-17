@@ -1,158 +1,229 @@
-# THIS NOW DONE WITHIN phases_sb21
-# # Remove solid-solution phases that are never predicted to be stable from N_variable_components_in_SS
-# idx_ss_never_stable = IDX_OF_PHASES_NEVER_STABLE[IDX_OF_PHASES_NEVER_STABLE .> 7]        # sb21 contains 7 pure phases!
-# idx_ss_never_stable .-= 7                                                                # reset idx
-# N_variable_components_in_SS_adjusted = [v for (i,v) in enumerate(N_variable_components_in_SS) if i ∉ idx_ss_never_stable]
 
-# # Set-up the indices of different outputs in the REG output vector
-# IDX_phase_frac = 1:(length(PP) + length(SS) - length(IDX_OF_PHASES_NEVER_STABLE))
+
+const FC_SS = reshape(SS_COMP_adj, 6, Int(length(SS_COMP_adj) / 6))
+const FC_SS_MASK = sb21_surrogate.SS_COMP_VARIABLE
 
 """
-connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-
-This function is used for models that only predict phases that are stable in at least one assemblage of the training generate_dataset,
-and only predicts the variable compositional variables for SS-phases.
-
-Including bulk rock physical params.
+Reshape layer for regression of solid solution composition:
+Reshapes vector-output of a fully-connected layer into the form Matrix(N_COMPONENTS, N_PHASES).
 """
-function connection_reduced_phys_params(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
-    # using @view to get a StridedArray and avoid Scalar indexing
-    y_phase_frac = @view(y_reg[IDX_phase_frac, :]) .* y_clas
+struct ReshapeLayer
+    n :: Int
+    m :: Int
+end
+Flux.@layer ReshapeLayer
+Flux.trainable(rl::ReshapeLayer) = (;)
+(rl::ReshapeLayer)(x::Union{AbstractArray{Float32,3}, CuArray{Float32, 3}}) = reshape(x, rl.n, rl.m, :)
 
-    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adj, 1:length(y_clas[6:end, 1]))]...)
-    y_ss_comp = @view(y_reg[IDX_phase_frac[end]+1:end-3, :]) .* ss_comp_asm
 
-    y_phys_prop = @view(y_reg[end-2:end, :])
+"""
+Masking layer that injects fixed components into the predicted solid solution compositions.
+E.g., Si in Olivine is always 1/3 molmol⁻¹.
 
-    return vcat(y_phase_frac, y_ss_comp, y_phys_prop)
+This layer uses the global constants FC_SS_MASK (boolean mask of fixed components in solid solutions) and FC_SS (fixed components values).
+"""
+struct InjectLayer
+    var_mask :: AbstractArray
+    fc_vals  :: AbstractArray
+end
+function InjectLayer()
+    return InjectLayer(FC_SS_MASK, FC_SS)
+end
+Flux.@layer InjectLayer
+Flux.trainable(il::InjectLayer) = (;)
+(il::InjectLayer)(x::Union{AbstractArray{Float32,3}, CuArray{Float32, 3}}) = x .* il.var_mask .+ il.fc_vals
+
+
+"""
+Mask solid solution predictions with classifier output (phase stability).
+Use this function as connection in a Flux.Parallel layer:
+```
+Parallel(mask_𝐗,
+         m_classfier,
+         Chain(...)
+        )
+```
+"""
+function mask_𝐗(classifier_out, regressor_out)
+    ss_stable_view = @view classifier_out[7:20, :, :]           #//NOTE - Hard-coded indices a bit hacky; classifier_out[N_PP+1, N_TOTAL,:,:] > would need to be global constants
+    ss_stable_view = reshape(ss_stable_view, 1, 14, :)          #//NOTE - Same as line above
+    return regressor_out .* ss_stable_view
 end
 
 
 """
-connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-
-This function is used for models that only predict phases that are stable in at least one assemblage of the training generate_dataset,
-and only predicts the variable compositional variables for SS-phases.
-
-Excluding bulk rock physical params.
+Mask phase fraction predictions with classifier output (phase stability).
+Use this function as connection in a Flux.Parallel layer:
+```
+Parallel(mask_𝑣,
+         m_classfier,
+         Chain(...)
+        )
+```
 """
-function connection_reduced(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
-    # using @view to get a StridedArray and avoid Scalar indexing
-    y_phase_frac = @view(y_reg[IDX_phase_frac, :]) .* y_clas
-
-    ss_comp_asm = vcat([repeat(@view(y_clas[5+i:5+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS_adj, 1:length(y_clas[6:end, 1]))]...)
-    y_ss_comp = @view(y_reg[IDX_phase_frac[end]+1:end, :]) .* ss_comp_asm
-    return vcat(y_phase_frac, y_ss_comp)
+function mask_𝑣(classifier_out, regressor_out)
+    return regressor_out .* classifier_out
 end
 
 
-#=
-Custom Flux.jl compatible output layer: Out
-
-This section defines a custom layers and the corresponding forward-pass + reverse-mode AD rules (rrule) for gradient-based optimisation
-=#
-struct Out{T}
-    comp_PP ::T
-    comp_SS ::T
-    indices_var_components_in_SS::Vector{Int}
-end
-# Constructor:
-function Out(; comp_PP::VecOrMat{Float32} = PP_COMP_adj, comp_SS::VecOrMat{Float32} = SS_COMP_adj)
-    comp_PP = reshape(comp_PP, :, 1)
-    comp_SS = reshape(comp_SS, :, 1)
-
-    indices_var_components_in_SS = sb21_surrogate.IDX_of_variable_components_in_SS_adj
-
-    return Out(comp_PP, comp_SS, indices_var_components_in_SS)
-end
-Flux.@layer Out
-Flux.trainable(o::Out) = (;)
-
-
 """
-Forward-call
+Create a flux model with a given number of (hidden) layers, and number of neurons in these hidden layers.
+
+model = Chain(
+    Dense(INPUT_DIM => N_NEURONS, relu),
+    ...
+    N_LAYERS
+    ...
+    Dense(N_NEURONS => OUTPUT_DIM, sigmoid)
+)
 """
-function Out_f(o::Out, x)
-    x = ndims(x) == 1 ? reshape(x, :, 1) : x
-    batch_size = size(x, 2)
+function create_classifier_model(n_layers::Integer, n_neurons::Integer, input_dim::Integer, output_dim::Integer)
+    layers = []
 
-    comp_PP_mat = repeat(o.comp_PP, 1, batch_size)
-    comp_SS_mat = repeat(o.comp_SS, 1, batch_size)
+    # First layer (input to first hidden)
+    push!(layers, Dense(input_dim => n_neurons, relu))
 
-    comp_SS_injected = copy(comp_SS_mat)
-    comp_SS_injected[o.indices_var_components_in_SS, :] = x[21:end, :]
-
-    full_comp = vcat(comp_PP_mat, comp_SS_injected)
-    χ = reshape(full_comp, 6, Int(size(full_comp, 1) / 6), batch_size)
-    v = reshape(x[1:20, :], 20, 1, batch_size)
-    return χ, v
-end
-(o::Out)(x) = Out_f(o, x)
-
-"""
-Reverse-mode AD rule for (o::Out)(x)
-"""
-# //TODO - Make sure to double-check this....
-function ChainRulesCore.rrule(::typeof(Out_f), o::Out, x)
-    # ----- Forward pass -----
-    χ, v = Out_f(o, x)
-
-    function pullback(ȳ)
-        ȳχ, ȳv = ȳ
-
-        batch_size = size(x, 2)
-
-        gχ_unreshaped = reshape(ȳχ, size(χ,1)*size(χ,2), batch_size)
-        gv_unreshaped = reshape(ȳv, size(v,1), batch_size)
-
-        gx = similar(x)
-        gx .= zero(eltype(gx))
-        gx[1:20, :] .= gv_unreshaped
-
-        # pick rows from gχ corresponding to variable SS components (indices are in full_comp)
-        gx[21:end, :] .= gχ_unreshaped[sb21_surrogate.IDX_of_variable_components_in_SS_adj .+ 36, :]
-
-        ∂o = NoTangent()   # layer has no trainable params
-        return NoTangent(), ∂o, gx
+    # Hidden layers
+    for i in 2:n_layers
+        push!(layers, Dense(n_neurons => n_neurons, relu))
     end
 
-    return (χ, v), pullback
-end
+    # Output layer
+    push!(layers, Dense(n_neurons => output_dim, sigmoid))
 
-#=
-ARCHIVED CONNECTION FUNCTIONS
-
-archived: 24 Sept 2025
-=#
-"""
-connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
-"""
-function zz_connection(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
-    # using @view to get a StridedArray and avoid Scalar indexing
-    y_phase_frac = @view(y_reg[1:22, :]) .* y_clas
-
-    reg_indices  = [22 + (6*(i-1)+1):22 + (6*i) for i in 1:15]
-    clas_indices = [7+i:7+i for i in 1:15]
-
-    y_ss_comp = mapreduce((reg_indices, clas_indices) -> @view(y_reg[reg_indices, :]) .* repeat(@view(y_clas[clas_indices, :]), 6, 1),
-                          vcat, reg_indices, clas_indices)
-
-    return vcat(y_phase_frac, y_ss_comp)
+    return Chain(layers...)
 end
 
 
 """
-connection function used within compound model's Parallel layer to reduce ŷ_classifier with ŷ_regressor.
+Create a flux model with the general structure:
 
-This function is used for models that only predict variable variables for SS-phases.
+```
+model = Parallel(MASKING_FUNCTION,
+                 CLASSIFIER_MODEL,
+                 Chain(Dense(INPUT_DIM => N_NEURONS, relu),
+                       ...
+                       FRACTION_BACKBONE * N_LAYERS
+                       ...
+                       Dense(N_NEURONS => N_NEURONS, relu),
+                       Parallel((𝑣, 𝐗) -> (𝑣, 𝐗),
+                                Chain(Dense(N_NEURONS => N_NEURONS, relu),
+                                            ...
+                                            (1-FRACTION_BACKBONE) * N_LAYERS
+                                            ...
+                                            Dense(N_NEURONS => OUTPUT_DIM_𝑣)),
+                                Chain(Dense(N_NEURONS => N_NEURONS, relu),
+                                            ...
+                                            (1-FRACTION_BACKBONE) * N_LAYERS
+                                            ...
+                                            Dense(N_NEURONS => *(OUTPUT_DIM_𝐗...)),
+                                            ReshapeLayer(OUTPUT_DIM_REG...),
+                                            InjectLayer())
+                       )
+                )
+```
+
+with a given number of (hidden) layers, and number of neurons in these hidden layers.
 """
-function zz_connection_reduced_ss_comp(y_clas::T, y_reg::T) where {T <: Union{Matrix, CuArray}}
-    # using @view to get a StridedArray and avoid Scalar indexing
-    y_phase_frac = @view(y_reg[1:22, :]) .* y_clas
+function create_model_pretrained_classifier(fraction_backbone_layers::Rational{Int}, n_layers::Integer, n_neurons::Integer,
+                                            masking_f::Function, m_classifier::Chain;
+                                            out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
+    # check if fraction_backbone_layers is valid
+    isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
+    input_dim = size(m_classifier[1].weight, 2)
+    output_dim_class = size(m_classifier[end].weight, 1)
+    output_dim_class == out_dim_𝑣 || error("Classifier output dimension does not match out_dim_𝑣.")
+    output_dim_reg𝐗 = *(out_dim_𝐗...)
 
-    ss_comp_asm = vcat([repeat(@view(y_clas[7+i:7+i, :]), n, 1) for (n, i) in zip(N_variable_components_in_SS, 1:length(y_clas[8:end, 1]))]...)
+    # set-up regressor model
+    backbone_layers = []
+    for i in 1:(fraction_backbone_layers * n_layers)
+        if i == 1
+            push!(backbone_layers, Dense(input_dim => n_neurons, relu))
+        else
+            push!(backbone_layers, Dense(n_neurons => n_neurons, relu))
+        end
+    end
+    layers_reg_𝑣 = []
+    layers_reg_𝐗 = []
+    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+        push!(layers_reg_𝑣, Dense(n_neurons => n_neurons, relu))
+        push!(layers_reg_𝐗, Dense(n_neurons => n_neurons, relu))
+    end
 
-    y_ss_comp = @view(y_reg[23:end, :]) .* ss_comp_asm
+    push!(layers_reg_𝑣, Dense(n_neurons => out_dim_𝑣))
+    push!(layers_reg_𝐗, Dense(n_neurons => output_dim_reg𝐗))
+    push!(layers_reg_𝐗, ReshapeLayer(out_dim_𝐗...))
+    push!(layers_reg_𝐗, InjectLayer())
 
-    return vcat(y_phase_frac, y_ss_comp)
+    m_regressor = Chain(vcat(backbone_layers,
+                             [Parallel((𝑣, 𝐗) -> (𝑣, 𝐗),
+                                       Chain(layers_reg_𝑣...),
+                                       Chain(layers_reg_𝐗...)
+                                      )
+                             ]...
+                            )...
+                       )
+
+    # create full model
+    m = Parallel(masking_f,
+                 m_classifier,
+                 m_regressor)
+    return m
+end
+
+
+#TODO - UNTESTED!!!
+function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n_layers::Integer, n_neurons::Integer,
+                                      masking_f::Function;
+                                      input_dim::Integer = 8, out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
+    # check if fraction_backbone_layers is valid
+    isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
+    output_dim_reg𝐗 = *(out_dim_𝐗...)
+
+    # set-up backbone
+    backbone_layers = []
+    for i in 1:(fraction_backbone_layers * n_layers)
+        if i == 1
+            push!(backbone_layers, Dense(input_dim => n_neurons, relu))
+        else
+            push!(backbone_layers, Dense(n_neurons => n_neurons, relu))
+        end
+    end
+
+    # set-up classifier head
+    layers_class = []
+    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+        push!(layers_class, Dense(n_neurons => n_neurons, relu))
+    end
+    push!(layers_class, Dense(n_neurons => out_dim_𝑣, sigmoid))
+
+    # set-up 𝑣 regressor head
+    layers_reg_𝑣 = []
+    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+        push!(layers_reg_𝑣, Dense(n_neurons => n_neurons, relu))
+    end
+    push!(layers_reg_𝑣, Dense(n_neurons => out_dim_𝑣))
+
+    # set-up 𝐗 regressor head
+    layers_reg_𝐗 = []
+    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+        push!(layers_reg_𝐗, Dense(n_neurons => n_neurons, relu))
+    end
+    push!(layers_reg_𝐗, Dense(n_neurons => *(out_dim_𝐗...)))
+    push!(layers_reg_𝐗, ReshapeLayer(out_dim_𝐗...))
+    push!(layers_reg_𝐗, InjectLayer())
+
+    # create full model
+    m = Chain(backbone_layers...,
+              Parallel(masking_f,
+                       Chain(layers_class...),
+                       Chain(Parallel((𝑣, 𝐗) -> (𝑣, 𝐗),
+                                      Chain(layers_reg_𝑣...),
+                                      Chain(layers_reg_𝐗...)
+                                     )
+                             )
+                      )
+             )
+    return m
 end

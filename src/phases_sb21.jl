@@ -293,6 +293,12 @@ CONSTANTS used troughout the package
 IDX_of_variable_components_in_SS = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS)]...);
 IDX_of_variable_components_in_SS_adj = vcat([(i-1)*6 .+ idx for (i, idx) in enumerate(idx_of_variable_components_in_SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]])]...);
 
+# CREATE A MATRIX (6 x N_SS) OF ALL VARIABLE COMPONENTS IN SS PHASES
+SS_COMP_VARIABLE = zeros(Float32, 6, (length(SS) - length(IDX_SS_NEVER_STABLE)));
+for (i, j) in enumerate([idx for (i,idx) in enumerate(idx_of_variable_components_in_SS) if i ∉ IDX_SS_NEVER_STABLE])
+    SS_COMP_VARIABLE[j, i] .= 1.0
+end
+
 # Concatenate all SS compositions
 SS_COMP = Float32.(vcat(eval.(Symbol.(SS))...));
 SS_COMP_adj = Float32.(vcat(eval.(Symbol.(SS[[i for i in 1:15 if i ∉ IDX_SS_NEVER_STABLE]]))...));
