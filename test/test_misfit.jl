@@ -65,3 +65,13 @@
         @test misfit.mre_trivial_zeros(ŷ_batched, y_batched) ≈ 1/3 * (sum([1, 1, 0.1/eps(Float32), 0, 0, 0, 0, 0]) / 8 + sum([2, 1, 0.1/eps(Float32), 0, 0, 0, 0, 0]) / 8 + sum([1, 1, 0.1/eps(Float32), 1, 0, 0, 0, 0]) / 8)
     end
 end
+
+@testset "misfit.jl - Mass-balance misfits" begin
+    𝑣_ŷ = [0.5; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;;;
+           0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;;;
+           0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+
+    𝐗_ŷ = []
+    bulk_r = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = reshape(PP_COMP_adj, 6, :))
+
+end
