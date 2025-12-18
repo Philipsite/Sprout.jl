@@ -136,4 +136,42 @@ function mre_trivial_zeros(ŷ, y; agg = mean, ϵ=eps(Float32))
     return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]) ./ max.(y[non_zero_idx], ϵ))
 end
 
+
+#=====================================================================
+(2b) Misfit metrics considering mass-balance
+=====================================================================#
+
+#//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
+function recalculate_bulk((𝑣_ŷ, 𝐗_ŷ); pure_phase_comp = reshape(PP_COMP_adj, 6, :))
+    return pure_phase_comp ⊠ 𝑣_ŷ[1:6, :, :] .+ 𝐗_ŷ[:, :, :] ⊠ 𝑣_ŷ[7:end, :, :]
 end
+
+#//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
+"""
+Mass-balance misfit: Absolute deviation between input bulk rock composition and reconstructed bulk rock composition from predicted phase proportions and compositions.
+"""
+function mass_balance_abs_misfit((𝑣_ŷ, 𝐗_ŷ), x_bulk; agg = mean, pure_phase_comp = reshape(PP_COMP_adj, 6, :))
+    bulk_reconstructed = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = pure_phase_comp)
+    return agg(abs.(x_bulk .- bulk_reconstructed))
+end
+
+#//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
+"""
+Mass-balance misfit: Relative deviation with respect to input bulk rock composition of the reconstructed bulk rock composition from predicted phase proportions and compositions.
+"""
+function mass_balance_rel_misfit((𝑣_ŷ, 𝐗_ŷ), x_bulk; agg = mean, pure_phase_comp = reshape(PP_COMP_adj, 6, :))
+    bulk_reconstructed = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = pure_phase_comp)
+    return agg(abs.(x_bulk .- bulk_reconstructed) ./ (x_bulk .+ eps(Float32)))
+end
+
+#//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
+"""
+Mass-balance misfit: Relative deviation with respect to input bulk rock composition of the reconstructed bulk rock composition from predicted phase proportions and compositions.
+"""
+function mass_residual((𝑣_ŷ, 𝐗_ŷ); agg = mean, pure_phase_comp = reshape(PP_COMP_adj, 6, :))
+    bulk_reconstructed = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = pure_phase_comp)
+    residual = sum(bulk_reconstructed, dims=1) .- 1.0
+    return agg(abs.(residual))
+end
+
+end # module misfit
