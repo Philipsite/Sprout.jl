@@ -161,7 +161,7 @@ Mass-balance misfit: Relative deviation with respect to input bulk rock composit
 """
 function mass_balance_rel_misfit((𝑣_ŷ, 𝐗_ŷ), x_bulk; agg = mean, pure_phase_comp = reshape(PP_COMP_adj, 6, :))
     bulk_reconstructed = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = pure_phase_comp)
-    return agg(abs.(x_bulk .- bulk_reconstructed) ./ x_bulk)
+    return agg(abs.(x_bulk .- bulk_reconstructed) ./ (x_bulk .+ eps(Float32)))
 end
 
 #//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
