@@ -70,19 +70,27 @@ metrics = [mass_balance_metric, mae_𝑣, mae_𝐗];
 # TUNE IT
 #-----------------------------------------------------------------------
 hpt_regressor_pretrained_classifier(n_layers, n_neurons, fraction_backbone_layers, batch_size, loss,
-               (x_train, y_train), (x_val, (𝑣_val, 𝐗_ss_val)),
+               (x_train, (𝑣_train, 𝐗_ss_train)), (x_val, (𝑣_val, 𝐗_ss_val)),
                m_classifier, masking_f,
                1000, metrics,
-               lr_schedule=true)
+               lr_schedule=false)
+
+# Alternative: shared backbone model
+# hpt_regressor_common_backbone(n_layers, n_neurons, fraction_backbone_layers, batch_size, loss,
+#                               (x_train, (𝑣_train, 𝐗_ss_train)), (x_val, (𝑣_val, 𝐗_ss_val)),
+#                               masking_f,
+#                               10, metrics,
+#                               lr_schedule=false)
 
 # VISUALISE RESULTS
 #-----------------------------------------------------------------------
-log_matrix = load_hyperparam_tuning_results("hyperparam_tuning2025Dec17_1521", n_layers, n_neurons);
+log_matrix = load_hyperparam_tuning_results("hyperparam_tuning2025Dec19_1611", n_layers, n_neurons);
 
 min_val_loss = minimum.(getfield.(log_matrix, :mean_loss));
-min_qasm_loss = minimum.(getfield.(log_matrix, :loss_asm));
+min_mae_𝑣 = minimum.(getfield.(log_matrix, :mae_𝑣));
+min_mae_𝐗 = minimum.(getfield.(log_matrix, :mae_𝐗));
 
-fig = Figure(size = (800, 400));
+fig = Figure(size = (1200, 400));
 ax = Axis(fig[1, 1], aspect=1.0, xlabel="n.o. hidden layers", ylabel="n.o. neurons in hidden layers");
 ax.xticks = (n_layers, string.(n_layers));
 ax.yticks = (n_neurons, string.(n_neurons));
@@ -94,7 +102,14 @@ ax = Axis(fig[1, 3], aspect=1.0, xlabel="n.o. hidden layers", ylabel="n.o. neuro
 ax.xticks = (n_layers, string.(n_layers));
 ax.yticks = (n_neurons, string.(n_neurons));
 
-hm = heatmap!(n_layers, n_neurons, min_qasm_loss);
-Colorbar(fig[1, 4], hm; label = "min. Qasm loss");
+hm = heatmap!(n_layers, n_neurons, min_mae_𝑣);
+Colorbar(fig[1, 4], hm; label = "min. mae 𝑣");
+
+ax = Axis(fig[1, 5], aspect=1.0, xlabel="n.o. hidden layers", ylabel="n.o. neurons in hidden layers");
+ax.xticks = (n_layers, string.(n_layers));
+ax.yticks = (n_neurons, string.(n_neurons));
+
+hm = heatmap!(n_layers, n_neurons, min_mae_𝐗);
+Colorbar(fig[1, 6], hm; label = "min. mae 𝐗");
 
 fig
