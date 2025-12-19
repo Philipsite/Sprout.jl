@@ -40,7 +40,7 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
                     ŷ = m(x)
                     loss_f(ŷ, y, x)
                 end
-            
+
             elseif hasmethod(loss_f, Tuple{Any,Any})
                 loss, grads = Flux.withgradient(model) do m
                     ŷ = m(x)
@@ -73,7 +73,8 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
             elseif hasmethod(loss_f, Tuple{Any,Any})
                 val_loss = loss_f(ŷ_val, y_val|> gpu_device) |> cpu
             end
-
+            # push ŷ_val to cpu for metric calculations
+            ŷ_val = ŷ_val |> cpu
         else
             ŷ_val = model(x_val)
             if hasmethod(loss_f, Tuple{Any,Any,Any})
@@ -85,8 +86,8 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
 
         logs.val_loss[epoch] = val_loss
 
+        # this is also done on cpu
         for m in metrics
-            ŷ_val = model(x_val |> gpu_device) |> cpu 
             logs[nameof(m)][epoch] = m(ŷ_val, y_val)
         end
 
