@@ -3,7 +3,7 @@ using Flux
 using CSV, DataFrames
 using sb21_surrogate
 using CairoMakie
-    
+
 n_layers = [2, 3, 4];
 n_neurons = [32, 64, 128];
 batch_size = 100000;

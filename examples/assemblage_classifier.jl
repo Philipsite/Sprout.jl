@@ -34,6 +34,10 @@ output_dim = size(y_train, 1);
 m = create_classifier_model(n_layers, n_neurons, input_dim, output_dim);
 
 opt_state = Flux.setup(Flux.Adam(0.001), m);
+# Optional Learning Rate Scheduler and Early Stopping; can be passed to train_loop as kwargs
+# lr_schedule = CosAnneal(λ0 = 1e-5, λ1 = 1e-3, period = 50, restart=true)
+# setup early_stopping_condition
+# early_stopping = Flux.early_stopping((val_loss) -> val_loss, 10, init_score=Inf32)
 
 # TRAIN MODEL
 #-----------------------------------------------------------------------
