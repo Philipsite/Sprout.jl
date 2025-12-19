@@ -39,21 +39,21 @@ n_neurons = 256;
 
 masking_f = (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2]));
 
-m = create_model_shared_backbone(fraction_backbone_layers, n_layers, n_neurons, masking_f);
+m = create_model_shared_backbone(fraction_backbone_layers, n_layers, n_neurons, masking_f) |> gpu;
+
 opt_state = Flux.setup(Flux.Adam(0.001), m);
 
 # SETUP LOSS & METRICS
 #----------------------------------------------------------------------
-# Normalisation/scaling structures msut live on the same device as the model is trained on
-# for training on GPU move normalisers/scalers/pure_phase_comp to GPU; e.g. xNorm_gpu = xNorm |> gpu_device()
-
-# xNorm_gpu = gpu_device()(xNorm)
-# 𝑣Scale_gpu = gpu_device()(𝑣Scale)
-# 𝐗Scale_gpu = gpu_device()(𝐗Scale)
-# pp_mat_gpu = gpu_device()(reshape(PP_COMP_adj, 6, :))
+# Normalisation/scaling structures must live on the same device as the model is trained on
+# for training on GPU move normalisers/scalers/pure_phase_comp to GPU; e.g. xNorm_gpu = xNorm |> gpu
+xNorm_gpu = xNorm |> gpu;
+𝑣Scale_gpu = 𝑣Scale |> gpu;
+𝐗Scale_gpu = 𝐗Scale |> gpu;
+pp_mat_gpu = reshape(PP_COMP_adj, 6, :) |> gpu;
 
 function loss((𝑣_ŷ, 𝐗_ŷ), (𝑣, 𝐗), x)
-    return sum(abs2, 𝑣_ŷ .- 𝑣) + sum(abs2, 𝐗_ŷ .- 𝐗) + misfit.mass_balance_abs_misfit((descale(𝑣Scale, 𝑣_ŷ), descale(𝐗Scale, 𝐗_ŷ)), denorm(xNorm, x)[3:end,:,:], agg=sum)
+    return sum(abs2, 𝑣_ŷ .- 𝑣) + sum(abs2, 𝐗_ŷ .- 𝐗) + misfit.mass_balance_abs_misfit((descale(𝑣Scale_gpu, 𝑣_ŷ), descale(𝐗Scale_gpu, 𝐗_ŷ)), denorm(xNorm_gpu, x)[3:end,:,:], agg=sum, pure_phase_comp=pp_mat_gpu)
 end
 # Metrics (for validation only, must follow signature (ŷ, y) -> Real)
 function mass_balance_metric((𝑣_ŷ, 𝐗_ŷ), (_, _))
@@ -76,8 +76,9 @@ model, opt_state, logs_t, dir = train_loop(
     loss,
     500,
     metrics = [mae_𝑣, mae_𝐗, mass_balance_metric],
-    save_to_subdir = joinpath("examples", "reg_model_simultaneous")
+    gpu_device = gpu_device(),
+    save_to_subdir = joinpath("examples", "reg_model_simoultaneous")
 );
 
 # POST-TRAINING PLOTS
-fig = post_training_plots(logs_t, dir);
+fig = post_training_plots(logs_t, dir)

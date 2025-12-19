@@ -20,7 +20,7 @@ export Norm, denorm, MinMaxScaler, descale
 
 include("model.jl")
 export FC_SS, FC_SS_MASK, ReshapeLayer, InjectLayer, mask_𝐗, mask_𝑣
-export create_classifier_model, create_model_pretrained_classifier, create_model_common_base
+export create_classifier_model, create_model_pretrained_classifier, create_model_shared_backbone
 
 include("misfit.jl")
 export misfit

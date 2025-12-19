@@ -87,4 +87,4 @@ model, opt_state, logs_t, dir = train_loop(
 );
 
 # POST-TRAINING PLOTS
-fig = post_training_plots(logs_t, dir);
+fig = post_training_plots(logs_t, dir)
