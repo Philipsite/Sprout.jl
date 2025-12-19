@@ -8,6 +8,7 @@ These function should follow the convention:
 where `ŷ` is the model prediction, `y` is the ground truth, `agg` is an aggregation function (mean, sum, etc.) and `kwargs` are any additional keyword arguments.
 """
 module misfit
+import ..PP_COMP_adj
 using Statistics
 using Flux
 #=====================================================================

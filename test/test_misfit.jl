@@ -92,6 +92,10 @@ end
         mae = misfit.mass_balance_abs_misfit((𝑣_ŷ, 𝐗_ŷ), bulk; pure_phase_comp = reshape(PP_COMP_adj, 6, :))
         @test mae ≈ 0.0 atol=1e-5
 
+        # test default kwarg pure_phase_comp
+        mae = misfit.mass_balance_abs_misfit((𝑣_ŷ, 𝐗_ŷ), bulk)
+        @test mae ≈ 0.0 atol=1e-5
+
         𝑣_ŷ_mod = copy(𝑣_ŷ)
         𝑣_ŷ_mod[1, 1, 1] = 0.4
 
