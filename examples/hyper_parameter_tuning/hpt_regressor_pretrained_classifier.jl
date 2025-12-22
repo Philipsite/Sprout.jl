@@ -2,7 +2,7 @@
 using Flux
 using CSV, DataFrames
 using JLD2
-using sb21_surrogate
+using Sprout
 using CairoMakie
 
 n_layers = [3, 6, 9];

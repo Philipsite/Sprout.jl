@@ -1,4 +1,4 @@
-module sb21_surrogate
+module Sprout
 
 using Reexport: @reexport
 using ChainRulesCore

@@ -1,9 +1,9 @@
 using Test
 using CSV, DataFrames, JLD2
 using Flux
-using sb21_surrogate
+using Sprout
 
-@testset "sb21_surrogate" begin
+@testset "Sprout" begin
 
 include("test_gen_data.jl")
 include("test_phases_sb21.jl")

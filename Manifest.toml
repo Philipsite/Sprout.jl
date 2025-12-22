@@ -2,7 +2,7 @@
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "d38d01ed96472c7183cd2d1444071aea7bae4b46"
+project_hash = "d00a88853602cc56266d882a06a3257d2510337c"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1913,6 +1913,12 @@ git-tree-sha1 = "e08a62abc517eb79667d0a29dc08a3b589516bb5"
 uuid = "171d559e-b47b-412a-8079-5efa626c420e"
 version = "0.1.15"
 
+[[deps.Sprout]]
+deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "Statistics", "cuDNN"]
+path = "."
+uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
+version = "0.2.1"
+
 [[deps.StableRNGs]]
 deps = ["Random"]
 git-tree-sha1 = "4f96c596b8c8258cc7d3b19797854d368f243ddc"
@@ -2335,12 +2341,6 @@ version = "2022.0.0+1"
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.7.0+0"
-
-[[deps.sb21_surrogate]]
-deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "Statistics", "cuDNN"]
-path = "."
-uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
-version = "0.1.0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]

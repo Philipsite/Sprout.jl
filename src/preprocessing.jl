@@ -19,7 +19,7 @@ function indices_of_stable_phases()
     # setup indices of stable solid solution components > to extract solid solution compositions
     # offset by number of phases
     idx_stable_ss = 1:(length(SS)*6)
-    idx_stable_ss = [i for i in idx_stable_ss if i ∉ [6 * k + j for k in sb21_surrogate.IDX_SS_NEVER_STABLE for j in 1:6]] .+ n_phases
+    idx_stable_ss = [i for i in idx_stable_ss if i ∉ [6 * k + j for k in Sprout.IDX_SS_NEVER_STABLE for j in 1:6]] .+ n_phases
 
     return idx_stable_phases, idx_stable_ss
 end

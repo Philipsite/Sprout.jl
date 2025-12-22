@@ -1,7 +1,7 @@
 using CSV, DataFrames
 using JLD2
 using Flux
-using sb21_surrogate
+using Sprout
 using CairoMakie
 
 # LOAD DATA

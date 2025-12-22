@@ -44,7 +44,7 @@ function hpt_classifier(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer
         end
 
         model, opt_state, logs, log_dir_path = train_loop(model, loader, opt_state, (val_data[1], val_data[2]), loss, max_epochs; metrics=metrics, early_stopping_condition=early_stopping, lr_schedule=lrs, gpu_device=gpu_device(), save_to_subdir=subdir, show_progressbar=false)
-        sb21_surrogate.post_training_plots_asm(logs, log_dir_path)
+        Sprout.post_training_plots_asm(logs, log_dir_path)
 
         # write hyperparam configuration into saved model dir
         open(log_dir_path*"/hp_config.txt", "w") do file

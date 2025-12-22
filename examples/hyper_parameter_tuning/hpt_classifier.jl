@@ -1,7 +1,7 @@
 
 using Flux
 using CSV, DataFrames
-using sb21_surrogate
+using Sprout
 using CairoMakie
 
 n_layers = [2, 3, 4];

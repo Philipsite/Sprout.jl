@@ -1,7 +1,7 @@
 
 
 const FC_SS = reshape(SS_COMP_adj, 6, Int(length(SS_COMP_adj) / 6))
-const FC_SS_MASK = sb21_surrogate.SS_COMP_VARIABLE
+const FC_SS_MASK = Sprout.SS_COMP_VARIABLE
 
 """
 Reshape layer for regression of solid solution composition:
