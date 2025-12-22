@@ -22,8 +22,9 @@ Perform hyperparameter tuning for the CLASSIFIER model.
 function hpt_classifier(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, batch_size::Integer, loss::Function,
                             train_data::Tuple{AbstractArray{Float32, 3}, BitArray{3}}, val_data::Tuple{AbstractArray{Float32, 3}, BitArray{3}},
                             max_epochs::Integer, metrics::Vector{<:Function};
-                            lr_schedule::Bool = false)
-    subdir = "hyperparam_tuning" * Dates.format(now(),"yyyyudd_HHMM")
+                            lr_schedule::Bool = false,
+                            subdir_appendix::String = "")
+    subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
 
     loader = Flux.DataLoader((train_data[1], train_data[2]), batchsize=batch_size, shuffle=true)
     INPUT_DIM = size(train_data[1])[1]
@@ -64,8 +65,9 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
                                              train_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}, val_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}},
                                              classifier::Chain, masking_f::Function,
                                              max_epochs::Integer, metrics::Vector{<:Function};
-                                             lr_schedule::Bool = false)
-    subdir = "hyperparam_tuning" * Dates.format(now(),"yyyyudd_HHMM")
+                                             lr_schedule::Bool = false,
+                                             subdir_appendix::String = "")
+    subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
 
     loader = Flux.DataLoader((train_data[1], train_data[2]), batchsize=batch_size, shuffle=true)
     x_val, (𝑣_val, 𝐗_ss_val) = val_data
@@ -107,8 +109,9 @@ function hpt_regressor_common_backbone(n_layers::Vector{<:Integer}, n_neurons::V
                                        train_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}, val_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}},
                                        masking_f::Function,
                                        max_epochs::Integer, metrics::Vector{<:Function};
-                                       lr_schedule::Bool = false)
-    subdir = "hyperparam_tuning" * Dates.format(now(),"yyyyudd_HHMM")
+                                       lr_schedule::Bool = false,
+                                       subdir_appendix::String = "")
+    subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
 
     loader = Flux.DataLoader((train_data[1], train_data[2]), batchsize=batch_size, shuffle=true)
     x_val, (𝑣_val, 𝐗_ss_val) = val_data
