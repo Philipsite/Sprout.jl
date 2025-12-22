@@ -131,3 +131,54 @@ end
         @test mr ≈ 1.1/3 atol=1e-5
     end
 end
+
+@testset "misfit.jl - Mass-balance misfits" begin
+    @testset "closure_condition_misfit" begin
+        s1 = 0.0
+        s2 = 0.5
+        s3 = 1.0
+
+        @test misfit.closure_condition_misfit(s1) ≈ 0.0
+        @test misfit.closure_condition_misfit(s2) ≈ 0.0625
+        @test misfit.closure_condition_misfit(s3) ≈ 0.0
+
+        α = 2
+        @test misfit.closure_condition_misfit(s2, α=α) ≈ 0.00390625
+
+        s4 = [0.0, 0.5, 1.0]
+        @test misfit.closure_condition_misfit(s4) ≈ [0.0, 0.0625, 0.0]
+        @test misfit.closure_condition_misfit(s4, α=α) ≈ [0.0, 0.00390625, 0.0]
+    end
+
+    @testset "closure_condition" begin
+        𝑣_ŷ = [0.5; 0; 0; 0; 0; 0; 0.5; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;;;
+               0; 0; 0; 0; 0; 0; 0; 0; 0.8; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0.2; 0;;;
+               0.0; 0; 1.0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0]
+        𝐗_ŷ = repeat(reshape(FC_SS, size(FC_SS)..., 1), 1, 1, 3)
+        𝐗_ŷ[:, 1, 1] = [0.7, 0.05, 0.15, 0.0, 0.0, 0.1]         # Plg with 0.2Ab + 0.8An
+        𝐗_ŷ[:, 3, 2] = [1/3, 0.0, 0.0, 0.5*(2/3), 0.5*(2/3), 0.0]
+        𝐗_ŷ[:, 13, 2] = [0.0, 0.0, 0.25, 0.5, 0.0, 0.25]        # Mw with 0.5 anao + 0.5 wustite
+
+        𝐗_ŷ[:, :, 3] .= [1.0, 0.0, 0.0, 0.0, 0.0, 0.0] # fake phase composition that sums to one
+
+        # mask 𝐗, get rid of the fixed components (as these do not sum to 1.0)
+        𝑣_mask = PermutedDimsArray(𝑣_ŷ .> 0.0, (2, 1, 3))
+        𝐗_ŷ .*= 𝑣_mask[:, 7:end, :]
+
+        cc_misfit = misfit.closure_condition((𝑣_ŷ, 𝐗_ŷ), "voided arg"; agg = sum, α = 1.0)
+        @test cc_misfit ≈ 0.0 atol=1e-5
+
+        𝑣_ŷ_mod = copy(𝑣_ŷ)
+        𝑣_ŷ_mod[1, 1, 1] = 0.01
+        cc_misfit = misfit.closure_condition((𝑣_ŷ_mod, 𝐗_ŷ), "voided arg"; agg = sum, α = 1.0)
+        @test cc_misfit ≈ 0.51^2*0.49^2 atol=1e-5
+
+        𝐗_ŷ_mod = copy(𝐗_ŷ)
+        𝐗_ŷ_mod[1, 1, 1] = 0.6
+        cc_misfit = misfit.closure_condition((𝑣_ŷ, 𝐗_ŷ_mod), "voided arg"; agg = sum, α = 1.0)
+        @test cc_misfit ≈ (0.7 - 0.6)^2 * (1.0 - (0.7 - 0.6))^2 atol=1e-5
+
+        cc_misfit = misfit.closure_condition((𝑣_ŷ_mod, 𝐗_ŷ_mod), "voided arg"; agg = sum, α = 1.0)
+        @test cc_misfit ≈ 0.51^2*0.49^2 + (0.7 - 0.6)^2 * (1.0 - (0.7 - 0.6))^2 atol=1e-5
+    end
+end
