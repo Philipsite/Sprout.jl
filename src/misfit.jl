@@ -175,4 +175,34 @@ function mass_residual((𝑣_ŷ, 𝐗_ŷ); agg = mean, pure_phase_comp = reshape
     return agg(abs.(residual))
 end
 
+#=====================================================================
+(2b) Misfit metrics considering closure conditions
+=====================================================================#
+"""
+Closure condition misfit function: (s^2 * (1 - s)^2)^α
+
+- s: closure condition value, i.e. sum of phase proportions/compositions. s ∈ {0, 1}
+- α: exponent to adjust the penalty strength (default: 1 > linear penalty)
+"""
+function closure_condition_misfit(s; α=1)
+    return (s.^2 .* (1 .- s).^ 2).^α
+end
+
+
+"""
+Closure condition misfit for phase proportions and compositions.
+- (𝑣_ŷ, 𝐗_ŷ): predicted phase proportions and compositions
+- y: voided variable, this is just to match the loss function signature ϕ = f(ŷ, y; agg = mean, kwargs...) -> Scalar
+- agg: aggregation function (default: mean)
+- α: exponent to adjust the penalty strength (default: 1 > linear penalty)
+"""
+function closure_condition((𝑣_ŷ, 𝐗_ŷ), y; agg = mean, α = 1.0)
+    _ = y  # void variable to match loss function signature
+
+    s_v = closure_condition_misfit(sum(𝑣_ŷ, dims=1), α=α)
+    s_X = closure_condition_misfit(sum(𝐗_ŷ, dims=1), α=α)
+
+    return agg(s_v) + agg(s_X)
+end
+
 end # module misfit
