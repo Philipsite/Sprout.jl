@@ -18,7 +18,7 @@ using Flux
 """
 Q_asm loss function defined as (1 - Q_asm), where Q_asm is the assemblage quality factor defined in [Duesterhoeft, E. & Lanari, P. (2020)](https://doi.org/10.1111/jmg.12538).
 """
-function loss_asm(ŷ::T1, y::T2; agg = mean, ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
+function loss_asm(ŷ, y; agg = mean, ϵ = 0.5)
     p̂ = ŷ .> ϵ
     p = y
     # total number of present phases
@@ -35,7 +35,7 @@ Binary focal loss following the implementation [Flux.jl](https://github.com/Flux
 
 Fixed error of focal loss returning NaN when ŷ -> 1.0 within the range of ϵ for Float32. This method uses clamp() instead of adding ϵ to ŷ (Flux.jl implemenation)
 """
-function binary_focal_loss(ŷ::T1, y::T2; agg=mean, gamma=2, eps::Real=Flux.epseltype(ŷ)) where {T1 <: AbstractArray{Float32}, T2 <: Union{AbstractArray{Bool}, AbstractArray{Float32}}}
+function binary_focal_loss(ŷ, y; agg=mean, gamma=2, eps::Real=Flux.epseltype(ŷ))
     γ = gamma isa Integer ? gamma : ofeltype(ŷ, gamma)
     Flux.Losses._check_sizes(ŷ, y)
 
@@ -56,7 +56,7 @@ end
 """
 Fraction of a batch of data, for which the assemblage is off by one or more phase(s).
 """
-function fraction_mismatched_asm(ŷ::T1, y::T2; ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
+function fraction_mismatched_asm(ŷ, y; ϵ = 0.5)
     p̂ = ŷ .> ϵ
     p = y
     mismatch = p̂ .!= p
@@ -68,7 +68,7 @@ end
 """
 Fraction of phases of a batch of data that are not predicted correctly.
 """
-function fraction_mismatched_phases(ŷ::T1, y::T2; ϵ = 0.5) where {T1 <: AbstractArray{Float32}, T2 <: AbstractArray{Bool}}
+function fraction_mismatched_phases(ŷ, y; ϵ = 0.5)
     p̂ = ŷ .> ϵ
     p = y
     mismatch = p̂ .!= p
