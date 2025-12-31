@@ -132,7 +132,7 @@ end
     end
 end
 
-@testset "misfit.jl - Mass-balance misfits" begin
+@testset "misfit.jl - Closure conditions" begin
     @testset "closure_condition_misfit" begin
         s1 = 0.0
         s2 = 0.5
