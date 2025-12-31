@@ -147,3 +147,52 @@ function hpt_regressor_common_backbone(n_layers::Vector{<:Integer}, n_neurons::V
 
     return nothing
 end
+
+
+"""
+Benchmark the inference time of the models generated in a hyperparameter tuning run.
+Returns a matrix of inference times in milliseconds with dimensions (length(n_layers), length(n_neurons)).
+"""
+function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector, val_data::T) where T <: Tuple{AbstractArray{Float32, 3}, BitArray{3}}
+    x_val, y_val = val_data
+    INPUT_DIM = size(x_val)[1]
+    OUTPUT_DIM = size(y_val)[1]
+
+    all_models_dir = readdir(dir, join=true)
+
+    inference_time_ms = []
+    hyperparams_setup = collect(Iterators.product(n_layers, n_neurons))
+
+    for i in eachindex(all_models_dir)
+        m = create_classifier_model(hyperparams_setup[i][1], hyperparams_setup[i][2], INPUT_DIM, OUTPUT_DIM)
+
+        model_state = JLD2.load(all_models_dir[i] * "/saved_model.jld2", "model_state")
+        Flux.loadmodel!(m, model_state)
+
+        # closure to measure inference time
+        infer_time = () -> begin
+            _ = m(x_val)
+        end
+        # warm-up execution (trigger JIT)
+        infer_time()
+
+        res = @benchmark $infer_time()
+        # convert to milliseconds (BenchmarkTools output in ns per default)
+        res_ms = median(res.times) / 1_000_000
+
+        push!(inference_time_ms, res_ms)
+    end
+
+    inference_time_ms = reshape(inference_time_ms, (length(n_layers), length(n_neurons)))
+    return inference_time_ms
+end
+
+function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector, fraction_backbone_layers::Rational{Int}, val_data::T) where T <: Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}
+    println("INFERENCE TIME ESTIMATION FOR REGRESSOR WITH SHARED BACKBONE - NOT YET IMPLEMENTED")
+    return nothing
+end
+
+function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector, fraction_backbone_layers::Rational{Int}, classifier::Chain, val_data::T) where T <: Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}
+    println("INFERENCE TIME ESTIMATION FOR REGRESSOR WITH PRETRAINED CLASSIFIER - NOT YET IMPLEMENTED")
+    return nothing
+end

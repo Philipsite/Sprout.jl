@@ -33,6 +33,9 @@ export train_loop, post_training_plots
 
 include("hyperparameter_tuning.jl")
 export hpt_classifier, hpt_regressor_pretrained_classifier, hpt_regressor_common_backbone
-export load_hyperparam_tuning_results
+export load_hyperparam_tuning_results, estimate_inference_time
+
+include("phase_diagram.jl")
+export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram
 
 end
