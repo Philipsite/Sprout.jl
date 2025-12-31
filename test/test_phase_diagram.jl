@@ -1,5 +1,5 @@
 
-@testset "model.jl" begin
+@testset "phase_diagram.jl" begin
     n_layers = 2;
     n_neurons = 200;
     input_dim = 8;
