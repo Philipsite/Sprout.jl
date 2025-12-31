@@ -129,7 +129,7 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
                                             masking_f::Function, m_classifier::Chain;
                                             out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
     # check if fraction_backbone_layers is valid
-    isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
+    # isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
     input_dim = size(m_classifier[1].weight, 2)
     output_dim_class = size(m_classifier[end].weight, 1)
     output_dim_class == out_dim_𝑣 || error("Classifier output dimension does not match out_dim_𝑣.")
@@ -137,7 +137,12 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
 
     # set-up regressor model
     backbone_layers = []
-    for i in 1:(fraction_backbone_layers * n_layers)
+    n_head = round(Int, n_layers * (1-fraction_backbone_layers))
+    n_backbone = n_layers - n_head
+    # check if n_backbone + n_head == n_layers
+    n_backbone + n_head == n_layers || error("n_backbone + n_head must equal n_layers.")
+    
+    for i in 1:n_backbone
         if i == 1
             push!(backbone_layers, Dense(input_dim => n_neurons, relu))
         else
@@ -146,7 +151,7 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
     end
     layers_reg_𝑣 = []
     layers_reg_𝐗 = []
-    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+    for i in 1:n_head
         push!(layers_reg_𝑣, Dense(n_neurons => n_neurons, relu))
         push!(layers_reg_𝐗, Dense(n_neurons => n_neurons, relu))
     end
@@ -173,17 +178,56 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
 end
 
 
-#TODO - UNTESTED!!!
+"""
+Create a flux model with the general structure:
+
+```
+model = Chain(Dense(INPUT_DIM => N_NEURONS, relu),
+              ...
+              FRACTION_BACKBONE * N_LAYERS
+              ...
+              Dense(N_NEURONS => N_NEURONS, relu),
+              Parallel(Chain(Dense(N_NEURONS => N_NEURONS, relu),
+                             ...
+                             (1-FRACTION_BACKBONE) * N_LAYERS
+                             ...
+                             Dense(N_NEURONS => OUTPUT_DIM_𝑣, sigmoid)),
+                       Chain(Parallel(MASKING_FUNCTION,
+                                      Chain(Dense(N_NEURONS => N_NEURONS, relu),
+                                            ...
+                                            (1-FRACTION_BACKBONE) * N_LAYERS
+                                            ...
+                                            Dense(N_NEURONS => OUTPUT_DIM_𝑣)),
+                                      Chain(Dense(N_NEURONS => N_NEURONS, relu),
+                                            ...
+                                            (1-FRACTION_BACKBONE) * N_LAYERS
+                                            ...
+                                            Dense(N_NEURONS => *(OUTPUT_DIM_𝐗...)),
+                                            ReshapeLayer(OUTPUT_DIM_REG...),
+                                            InjectLayer())
+                                       )
+                            )
+                       )
+              )
+```
+
+with a given number of (hidden) layers, and number of neurons in these hidden layers.
+"""
 function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n_layers::Integer, n_neurons::Integer,
                                       masking_f::Function;
                                       input_dim::Integer = 8, out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
     # check if fraction_backbone_layers is valid
-    isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
+    # isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
     output_dim_reg𝐗 = *(out_dim_𝐗...)
 
     # set-up backbone
     backbone_layers = []
-    for i in 1:(fraction_backbone_layers * n_layers)
+    n_head = round(Int, n_layers * (1-fraction_backbone_layers))
+    n_backbone = n_layers - n_head
+    # check if n_backbone + n_head == n_layers
+    n_backbone + n_head == n_layers || error("n_backbone + n_head must equal n_layers.")
+    
+    for i in 1:n_backbone
         if i == 1
             push!(backbone_layers, Dense(input_dim => n_neurons, relu))
         else
@@ -193,24 +237,24 @@ function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n
 
     # set-up classifier head
     layers_class = []
-    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+    for i in 1:n_head
         push!(layers_class, Dense(n_neurons => n_neurons, relu))
     end
     push!(layers_class, Dense(n_neurons => out_dim_𝑣, sigmoid))
 
     # set-up 𝑣 regressor head
     layers_reg_𝑣 = []
-    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+    for i in 1:n_head
         push!(layers_reg_𝑣, Dense(n_neurons => n_neurons, relu))
     end
     push!(layers_reg_𝑣, Dense(n_neurons => out_dim_𝑣))
 
     # set-up 𝐗 regressor head
     layers_reg_𝐗 = []
-    for i in 1:((1 - fraction_backbone_layers) * n_layers)
+    for i in 1:n_head
         push!(layers_reg_𝐗, Dense(n_neurons => n_neurons, relu))
     end
-    push!(layers_reg_𝐗, Dense(n_neurons => *(out_dim_𝐗...)))
+    push!(layers_reg_𝐗, Dense(n_neurons => output_dim_reg𝐗))
     push!(layers_reg_𝐗, ReshapeLayer(out_dim_𝐗...))
     push!(layers_reg_𝐗, InjectLayer())
 

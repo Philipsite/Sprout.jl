@@ -51,45 +51,121 @@
                                                 (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2])),
                                                 m1)
 
-          # Top-level should be a Parallel of (masking_f, classifier, regressor)
-          @test m2 isa Parallel
-          @test length(m2.layers) == 2  # classifier + regressor branch
+        # Top-level should be a Parallel of (masking_f, classifier, regressor)
+        @test m2 isa Parallel
+        @test length(m2.layers) == 2  # classifier + regressor branch
 
-          # Classifier branch should equal m1 (structure-wise)
-          @test m2.layers[1] isa Chain
-          @test length(m2.layers[1]) == 4
-          @test m2.layers[1][1] isa Dense && size(m2.layers[1][1].weight) == (64, 8) && m2.layers[1][1].σ === relu
-          @test m2.layers[1][2] isa Dense && size(m2.layers[1][2].weight) == (64, 64) && m2.layers[1][2].σ === relu
-          @test m2.layers[1][3] isa Dense && size(m2.layers[1][3].weight) == (64, 64) && m2.layers[1][3].σ === relu
-          @test m2.layers[1][4] isa Dense && size(m2.layers[1][4].weight) == (20, 64) && m2.layers[1][4].σ === sigmoid
+        # Classifier branch should equal m1 (structure-wise)
+        @test m2.layers[1] isa Chain
+        @test length(m2.layers[1]) == 4
+        @test m2.layers[1][1] isa Dense && size(m2.layers[1][1].weight) == (64, 8) && m2.layers[1][1].σ === relu
+        @test m2.layers[1][2] isa Dense && size(m2.layers[1][2].weight) == (64, 64) && m2.layers[1][2].σ === relu
+        @test m2.layers[1][3] isa Dense && size(m2.layers[1][3].weight) == (64, 64) && m2.layers[1][3].σ === relu
+        @test m2.layers[1][4] isa Dense && size(m2.layers[1][4].weight) == (20, 64) && m2.layers[1][4].σ === sigmoid
 
-          # Regressor branch structure
-          reg = m2.layers[2]
-          @test reg isa Chain
-          @test length(reg) == 3  # Dense -> Dense -> Parallel
-          @test reg[1] isa Dense && size(reg[1].weight) == (64, 8) && reg[1].σ === relu
-          @test reg[2] isa Dense && size(reg[2].weight) == (64, 64) && reg[2].σ === relu
+        # Regressor branch structure
+        reg = m2.layers[2]
+        @test reg isa Chain
+        @test length(reg) == 3  # Dense -> Dense -> Parallel
+        @test reg[1] isa Dense && size(reg[1].weight) == (64, 8) && reg[1].σ === relu
+        @test reg[2] isa Dense && size(reg[2].weight) == (64, 64) && reg[2].σ === relu
 
-          # Inner Parallel splitting into (v, X) heads
-          @test reg[3] isa Parallel
-          @test length(reg[3].layers) == 2
-          head_v = reg[3].layers[1]
-          head_X = reg[3].layers[2]
+        # Inner Parallel splitting into (v, X) heads
+        @test reg[3] isa Parallel
+        @test length(reg[3].layers) == 2
+        head_v = reg[3].layers[1]
+        head_X = reg[3].layers[2]
 
-          # v head: Dense(64->64, relu) then Dense(64->20)
-          @test head_v isa Chain
-          @test length(head_v) == 2
-          @test head_v[1] isa Dense && size(head_v[1].weight) == (64, 64) && head_v[1].σ === relu
-          @test head_v[2] isa Dense && size(head_v[2].weight) == (20, 64)
+        # v head: Dense(64->64, relu) then Dense(64->20)
+        @test head_v isa Chain
+        @test length(head_v) == 2
+        @test head_v[1] isa Dense && size(head_v[1].weight) == (64, 64) && head_v[1].σ === relu
+        @test head_v[2] isa Dense && size(head_v[2].weight) == (20, 64)
 
-          # X head: Dense(64->64, relu) -> Dense(64->(6*20)) -> ReshapeLayer(6,20) -> InjectLayer
-          @test head_X isa Chain
-          @test length(head_X) == 4
-          @test head_X[1] isa Dense && size(head_X[1].weight) == (64, 64) && head_X[1].σ === relu
-          @test head_X[2] isa Dense && size(head_X[2].weight) == (6*14, 64)
-          @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 14
-          @test head_X[4] isa InjectLayer
+        # X head: Dense(64->64, relu) -> Dense(64->(6*20)) -> ReshapeLayer(6,20) -> InjectLayer
+        @test head_X isa Chain
+        @test length(head_X) == 4
+        @test head_X[1] isa Dense && size(head_X[1].weight) == (64, 64) && head_X[1].σ === relu
+        @test head_X[2] isa Dense && size(head_X[2].weight) == (6*14, 64)
+        @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 14
+        @test head_X[4] isa InjectLayer
 
+        # test case, where rounding of layers is required -> should result in 1:1 split backbone:head
+        m3 = create_model_pretrained_classifier(2//3, 2, 64,
+                                                (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2])),
+                                                m1)
+        
+        # Regressor branch structure
+        reg = m3.layers[2]
+        @test reg isa Chain
+        @test length(reg) == 2  # Dense -> Parallel
+        @test reg[1] isa Dense && size(reg[1].weight) == (64, 8) && reg[1].σ === relu
+
+        # Inner Parallel splitting into (v, X) heads
+        @test reg[2] isa Parallel
+        @test length(reg[2].layers) == 2
+        head_v = reg[2].layers[1]
+        head_X = reg[2].layers[2]
+
+        # v head: Dense(64->64, relu) then Dense(64->20)
+        @test head_v isa Chain
+        @test length(head_v) == 2
+        @test head_v[1] isa Dense && size(head_v[1].weight) == (64, 64) && head_v[1].σ === relu
+        @test head_v[2] isa Dense && size(head_v[2].weight) == (20, 64)
+
+        # X head: Dense(64->64, relu) -> Dense(64->(6*20)) -> ReshapeLayer(6,20) -> InjectLayer
+        @test head_X isa Chain
+        @test length(head_X) == 4
+        @test head_X[1] isa Dense && size(head_X[1].weight) == (64, 64) && head_X[1].σ === relu
+        @test head_X[2] isa Dense && size(head_X[2].weight) == (6*14, 64)
+        @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 14
+        @test head_X[4] isa InjectLayer
+
+
+        # test create_model_shared_backbone()
+        m4 = create_model_shared_backbone(2//3, 2, 64,
+                                          (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2])))
+
+        # Top-level should be a Chain Input -> 1 Hidden layer -> Parallel
+        @test m4 isa Chain
+        @test length(m4) == 2  # Dense -> Parallel
+        @test m4[1] isa Dense && size(m4[1].weight) == (64, 8) && m4[1].σ === relu
+
+        # Parallel of (masking_f, classifier, regressor)
+        @test m4[2] isa Parallel
+        @test length(m4[2].layers) == 2  # classifier + regressor branch
+        # Classifier branch 1 hidden layer + output
+        @test m4[2].layers[1] isa Chain
+        @test length(m4[2].layers[1]) == 2
+        @test m4[2].layers[1][1] isa Dense && size(m4[2].layers[1][1].weight) == (64, 64) && m4[2].layers[1][1].σ === relu
+        @test m4[2].layers[1][2] isa Dense && size(m4[2].layers[1][2].weight) == (20, 64) && m4[2].layers[1][2].σ === sigmoid
+
+        # Regressor branch structure
+        reg = m4[2].layers[2]
+        @test reg isa Chain
+        @test length(reg) == 1  # Parallel
+        reg = reg[1]
+
+
+        # Inner Parallel splitting into (v, X) heads
+        @test reg isa Parallel
+        @test length(reg.layers) == 2  # v head + X head
+        head_v = reg.layers[1]
+        head_X = reg.layers[2]
+
+        # v head: Dense(64->64, relu) then Dense(64->20)
+        @test head_v isa Chain
+        @test length(head_v) == 2
+        @test head_v[1] isa Dense && size(head_v[1].weight) == (64, 64) && head_v[1].σ === relu
+        @test head_v[2] isa Dense && size(head_v[2].weight) == (20, 64)
+
+        # X head: Dense(64->64, relu) -> Dense(64->(6*20)) -> ReshapeLayer(6,20) -> InjectLayer
+        @test head_X isa Chain
+        @test length(head_X) == 4
+        @test head_X[1] isa Dense && size(head_X[1].weight) == (64, 64) && head_X[1].σ === relu
+        @test head_X[2] isa Dense && size(head_X[2].weight) == (6*14, 64)
+        @test head_X[3] isa ReshapeLayer && head_X[3].n == 6 && head_X[3].m == 14
+        @test head_X[4] isa InjectLayer
     end
 end
 
