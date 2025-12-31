@@ -11,12 +11,10 @@ fraction_backbone_layers = 2//3;
 batch_size = 100000;
 
 masking_f = (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2]));
-# Load and freeze CLASSIFIER
+# Load CLASSIFIER
 m_classifier = create_classifier_model(3, 250, 8, 20);
 model_state = JLD2.load("examples/data/saved_classifier.jld2", "model_state");
 Flux.loadmodel!(m_classifier, model_state);
-m_tree_classifier = Flux.setup(Flux.Adam(), m_classifier);
-Flux.freeze!(m_tree_classifier);
 
 # LOAD DATA
 #-----------------------------------------------------------------------

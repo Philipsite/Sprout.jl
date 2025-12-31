@@ -66,6 +66,7 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
                                              classifier::Chain, masking_f::Function,
                                              max_epochs::Integer, metrics::Vector{<:Function};
                                              lr_schedule::Bool = false,
+                                             freeze_classifier::Bool = false,
                                              subdir_appendix::String = "")
     subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
 
@@ -76,6 +77,10 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
                                                    masking_f, classifier;
                                                    out_dim_𝑣 = 20, out_dim_𝐗 = (6, 14)) |> gpu_device()
         opt_state = Flux.setup(Flux.Adam(0.001), model)
+
+        if freeze_classifier
+            Flux.freeze!(opt_state.layers[1])  # freeze the classifier part
+        end
 
         # setup early_stopping_condition
         early_stopping = Flux.early_stopping((val_loss) -> val_loss, 10, init_score=Inf32)

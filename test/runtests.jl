@@ -11,6 +11,7 @@ include("test_preprocessing.jl")
 include("test_norm.jl")
 include("test_model.jl")
 include("test_misfit.jl")
+include("test_training.jl")
 include("test_phase_diagram.jl")
 
 end

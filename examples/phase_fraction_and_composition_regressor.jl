@@ -42,12 +42,14 @@ masking_f = (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(c
 m_classifier = create_classifier_model(3, 250, 8, 20);
 model_state = JLD2.load("examples/data/saved_classifier.jld2", "model_state");
 Flux.loadmodel!(m_classifier, model_state);
-m_tree_classifier = Flux.setup(Flux.Adam(), m_classifier);
-Flux.freeze!(m_tree_classifier);
+m_classifier = Flux.setup(Flux.Adam(), m_classifier);
+Flux.freeze!(m_classifier.layers);
 
 m = create_model_pretrained_classifier(fraction_backbone_layers, n_layers, n_neurons, masking_f, m_classifier) |> gpu;
 
 opt_state = Flux.setup(Flux.Adam(0.001), m);
+# freeze the classifier part
+Flux.freeze!(opt_state.layers[1]);
 
 # SETUP LOSS & METRICS
 #----------------------------------------------------------------------
