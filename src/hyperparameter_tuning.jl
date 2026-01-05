@@ -61,6 +61,9 @@ function hpt_classifier(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer
 end
 
 
+"""
+Perform hyperparameter tuning for the REGRESSOR model with a pretrained CLASSIFIER as backbone.
+"""
 function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, fraction_backbone_layers::Rational{Int}, batch_size::Integer, loss::Function,
                                              train_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}, val_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}},
                                              classifier::Chain, masking_f::Function,
@@ -110,6 +113,9 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
 end
 
 
+"""
+Perform hyperparameter tuning for the REGRESSOR model with a shared backbone.
+"""
 function hpt_regressor_common_backbone(n_layers::Vector{<:Integer}, n_neurons::Vector{<:Integer}, fraction_backbone_layers::Rational{Int}, batch_size::Integer, loss::Function,
                                        train_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}, val_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}},
                                        masking_f::Function,
@@ -197,7 +203,38 @@ function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neuron
     return nothing
 end
 
-function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector, fraction_backbone_layers::Rational{Int}, classifier::Chain, val_data::T) where T <: Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}
-    println("INFERENCE TIME ESTIMATION FOR REGRESSOR WITH PRETRAINED CLASSIFIER - NOT YET IMPLEMENTED")
-    return nothing
+function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neurons::AbstractVector, fraction_backbone_layers::Rational{Int}, masking_f::Function, classifier::Chain, val_data::T) where T <: Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}
+    x_val, (𝑣_val, 𝐗_ss_val) = val_data
+    𝑣_DIM = size(𝑣_val)[1]
+    𝐗_DIM = size(𝐗_ss_val)[1:2]
+
+    all_models_dir = readdir(dir, join=true)
+
+    inference_time_ms = []
+    hyperparams_setup = collect(Iterators.product(n_layers, n_neurons))
+
+    for i in eachindex(all_models_dir)
+        m = create_model_pretrained_classifier(fraction_backbone_layers, hyperparams_setup[i][1], hyperparams_setup[i][2],
+                                              masking_f, classifier;
+                                              out_dim_𝑣=𝑣_DIM, out_dim_𝐗=𝐗_DIM)
+
+        model_state = JLD2.load(all_models_dir[i] * "/saved_model.jld2", "model_state")
+        Flux.loadmodel!(m, model_state)
+
+        # closure to measure inference time
+        infer_time = () -> begin
+            _, _ = m(x_val)
+        end
+        # warm-up execution (trigger JIT)
+        infer_time()
+
+        res = @benchmark $infer_time()
+        # convert to milliseconds (BenchmarkTools output in ns per default)
+        res_ms = median(res.times) / 1_000_000
+
+        push!(inference_time_ms, res_ms)
+    end
+
+    inference_time_ms = reshape(inference_time_ms, (length(fraction_backbone_layers), length(n_layers), length(n_neurons)))
+    return inference_time_ms
 end
