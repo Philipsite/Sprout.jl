@@ -170,6 +170,7 @@ function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neuron
     OUTPUT_DIM = size(y_val)[1]
 
     all_models_dir = readdir(dir, join=true)
+    all_models_dir = filter(d -> isdir(d), all_models_dir)
 
     inference_time_ms = []
     hyperparams_setup = collect(Iterators.product(n_layers, n_neurons))
@@ -209,6 +210,7 @@ function estimate_inference_time(dir::String, n_layers::AbstractVector, n_neuron
     𝐗_DIM = size(𝐗_ss_val)[1:2]
 
     all_models_dir = readdir(dir, join=true)
+    all_models_dir = filter(d -> isdir(d), all_models_dir)
 
     inference_time_ms = []
     hyperparams_setup = collect(Iterators.product(n_layers, n_neurons))
