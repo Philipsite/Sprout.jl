@@ -102,7 +102,7 @@ function train_loop(model, loader, opt_state, val_data::Tuple, loss_f::Function,
     if isnothing(save_to_subdir)
         dir = pwd() * "/sb21_sm_" * Dates.format(now(),"yyyyudd_HHMM")
         mkdir(dir)
-    elseif startswith(save_to_subdir, "/var")   # used for tests
+    elseif startswith(save_to_subdir, "/var") || startswith(save_to_subdir, "/tmp")   # used for tests
         dir = save_to_subdir * "/sb21_sm_" * Dates.format(now(),"yyyyudd_HHMM")
         mkdir(dir)
     else
