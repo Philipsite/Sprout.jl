@@ -167,7 +167,7 @@ end
 
 #//TODO - Hacky... Some indices are hard-coded. Should be generalized in the future.
 """
-Mass-balance misfit: Relative deviation with respect to input bulk rock composition of the reconstructed bulk rock composition from predicted phase proportions and compositions.
+Mass-balance misfit: Residual of the mass-balance condition, i.e. sum of reconstructed bulk should be 1.0.
 """
 function mass_residual((𝑣_ŷ, 𝐗_ŷ); agg = mean, pure_phase_comp = reshape(PP_COMP_adj, 6, :))
     bulk_reconstructed = recalculate_bulk((𝑣_ŷ, 𝐗_ŷ), pure_phase_comp = pure_phase_comp)
