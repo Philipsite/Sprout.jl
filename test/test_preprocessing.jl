@@ -7,7 +7,7 @@
 
     # test Sprout.indices_of_stable_phases
     @test Sprout.indices_of_stable_phases()[1] == [i for i in 1:22 if i ∉ [7, 19]]
-    @test Sprout.indices_of_stable_phases()[2] == [i for i in 1:(15*6) if i ∉ [6 * k + j for k in [12, ] for j in 1:6]] .+ 22
+    @test Sprout.indices_of_stable_phases()[2] == [i for i in 1:(15*6) if i ∉ [6 * (k-1) + j for k in [12, ] for j in 1:6]] .+ 22
 
     # test Sprout.one_hot_phase_stability
     @test Sprout.one_hot_phase_stability(Float32[0.0 0.2; 0.5 0.0]) == Bool[false true; true false]
