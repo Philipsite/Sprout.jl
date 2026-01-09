@@ -1,6 +1,9 @@
 
 
 const FC_SS = reshape(SS_COMP_adj, 6, Int(length(SS_COMP_adj) / 6))
+Scaler_FC_SS = MinMaxScaler(reshape(FC_SS, size(FC_SS)..., 1))
+Scaler_FC_SS.min .= 0.0f0          # manually adjust min to 0.0; as fixed components can be zero if phase is not stable
+const FC_SS_scaled = reshape(Scaler_FC_SS(FC_SS), size(FC_SS)...)
 const FC_SS_MASK = Sprout.SS_COMP_VARIABLE
 
 """
@@ -26,8 +29,14 @@ struct InjectLayer
     var_mask :: AbstractArray
     fc_vals  :: AbstractArray
 end
-function InjectLayer()
-    return InjectLayer(FC_SS_MASK, FC_SS)
+function InjectLayer(; scaled_FC::Bool = false)
+    if scaled_FC
+        @info "Using scaled fixed component values in InjectLayer. If the model output is not scaled, this will lead to incorrect results."
+        return InjectLayer(FC_SS_MASK, FC_SS_scaled)
+    else
+        @info "Using unscaled fixed component values in InjectLayer. If the model output is scaled, this will lead to incorrect results."
+        return InjectLayer(FC_SS_MASK, FC_SS)
+    end
 end
 Flux.@layer InjectLayer
 Flux.trainable(il::InjectLayer) = (;)
@@ -118,7 +127,7 @@ model = Parallel(MASKING_FUNCTION,
                                             ...
                                             Dense(N_NEURONS => *(OUTPUT_DIM_𝐗...)),
                                             ReshapeLayer(OUTPUT_DIM_REG...),
-                                            InjectLayer())
+                                            InjectLayer(scaled_FC=true))
                        )
                 )
 ```
@@ -127,7 +136,7 @@ with a given number of (hidden) layers, and number of neurons in these hidden la
 """
 function create_model_pretrained_classifier(fraction_backbone_layers::Rational{Int}, n_layers::Integer, n_neurons::Integer,
                                             masking_f::Function, m_classifier::Chain;
-                                            out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
+                                            out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14), scaled_FC::Bool = true)
     # check if fraction_backbone_layers is valid
     # isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
     input_dim = size(m_classifier[1].weight, 2)
@@ -141,7 +150,7 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
     n_backbone = n_layers - n_head
     # check if n_backbone + n_head == n_layers
     n_backbone + n_head == n_layers || error("n_backbone + n_head must equal n_layers.")
-    
+
     for i in 1:n_backbone
         if i == 1
             push!(backbone_layers, Dense(input_dim => n_neurons, relu))
@@ -159,7 +168,7 @@ function create_model_pretrained_classifier(fraction_backbone_layers::Rational{I
     push!(layers_reg_𝑣, Dense(n_neurons => out_dim_𝑣))
     push!(layers_reg_𝐗, Dense(n_neurons => output_dim_reg𝐗))
     push!(layers_reg_𝐗, ReshapeLayer(out_dim_𝐗...))
-    push!(layers_reg_𝐗, InjectLayer())
+    push!(layers_reg_𝐗, InjectLayer(scaled_FC=scaled_FC))
 
     m_regressor = Chain(vcat(backbone_layers,
                              [Parallel((𝑣, 𝐗) -> (𝑣, 𝐗),
@@ -204,7 +213,7 @@ model = Chain(Dense(INPUT_DIM => N_NEURONS, relu),
                                             ...
                                             Dense(N_NEURONS => *(OUTPUT_DIM_𝐗...)),
                                             ReshapeLayer(OUTPUT_DIM_REG...),
-                                            InjectLayer())
+                                            InjectLayer(scaled_FC=true))
                                        )
                             )
                        )
@@ -215,7 +224,7 @@ with a given number of (hidden) layers, and number of neurons in these hidden la
 """
 function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n_layers::Integer, n_neurons::Integer,
                                       masking_f::Function;
-                                      input_dim::Integer = 8, out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14))
+                                      input_dim::Integer = 8, out_dim_𝑣::Integer = 20, out_dim_𝐗::Tuple = (6, 14), scaled_FC::Bool = true)
     # check if fraction_backbone_layers is valid
     # isinteger(n_layers * fraction_backbone_layers) || error("n_layers * fraction_backbone_layers must be an integer.")
     output_dim_reg𝐗 = *(out_dim_𝐗...)
@@ -226,7 +235,7 @@ function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n
     n_backbone = n_layers - n_head
     # check if n_backbone + n_head == n_layers
     n_backbone + n_head == n_layers || error("n_backbone + n_head must equal n_layers.")
-    
+
     for i in 1:n_backbone
         if i == 1
             push!(backbone_layers, Dense(input_dim => n_neurons, relu))
@@ -256,7 +265,7 @@ function create_model_shared_backbone(fraction_backbone_layers::Rational{Int}, n
     end
     push!(layers_reg_𝐗, Dense(n_neurons => output_dim_reg𝐗))
     push!(layers_reg_𝐗, ReshapeLayer(out_dim_𝐗...))
-    push!(layers_reg_𝐗, InjectLayer())
+    push!(layers_reg_𝐗, InjectLayer(scaled_FC = scaled_FC))
 
     # create full model
     m = Chain(backbone_layers...,
