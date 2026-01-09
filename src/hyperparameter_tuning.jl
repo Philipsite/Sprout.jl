@@ -70,6 +70,7 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
                                              max_epochs::Integer, metrics::Vector{<:Function};
                                              lr_schedule::Bool = false,
                                              freeze_classifier::Bool = false,
+                                             scaled_FC::Bool = true,
                                              subdir_appendix::String = "")
     subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
 
@@ -78,7 +79,7 @@ function hpt_regressor_pretrained_classifier(n_layers::Vector{<:Integer}, n_neur
     for (n_l, n_n) in ProgressBar(Iterators.product(n_layers, n_neurons))
         model = create_model_pretrained_classifier(fraction_backbone_layers, n_l, n_n,
                                                    masking_f, classifier;
-                                                   out_dim_𝑣 = 20, out_dim_𝐗 = (6, 14)) |> gpu_device()
+                                                   out_dim_𝑣 = 20, out_dim_𝐗 = (6, 14), scaled_FC = scaled_FC) |> gpu_device()
         opt_state = Flux.setup(Flux.Adam(0.001), model)
 
         if freeze_classifier
@@ -120,6 +121,7 @@ function hpt_regressor_common_backbone(n_layers::Vector{<:Integer}, n_neurons::V
                                        train_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}}, val_data::Tuple{AbstractArray{Float32, 3}, Tuple{AbstractArray{Float32, 3}, AbstractArray{Float32, 3}}},
                                        masking_f::Function,
                                        max_epochs::Integer, metrics::Vector{<:Function};
+                                       scaled_FC::Bool = true,
                                        lr_schedule::Bool = false,
                                        subdir_appendix::String = "")
     subdir = "hyperparam_tuning" * subdir_appendix * "_"* Dates.format(now(),"yyyyudd_HHMM")
@@ -129,7 +131,7 @@ function hpt_regressor_common_backbone(n_layers::Vector{<:Integer}, n_neurons::V
     for (n_l, n_n) in ProgressBar(Iterators.product(n_layers, n_neurons))
         model = create_model_shared_backbone(fraction_backbone_layers, n_l, n_n,
                                              masking_f;
-                                             out_dim_𝑣 = 20, out_dim_𝐗 = (6, 14)) |> gpu_device()
+                                             out_dim_𝑣 = 20, out_dim_𝐗 = (6, 14), scaled_FC = scaled_FC) |> gpu_device()
         opt_state = Flux.setup(Flux.Adam(0.001), model)
 
         # setup early_stopping_condition

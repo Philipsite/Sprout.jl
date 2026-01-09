@@ -19,6 +19,35 @@
         y_1[.!(Bool.(FC_SS_MASK))] .= FC_SS[.!(Bool.(FC_SS_MASK))]
 
         @test ŷ[:, :, 1] == y_1
+
+        # When MinMaxScaling of the output is used, then the FC_SS used in the InjectLayer must be scaled as well!
+        il = InjectLayer(scaled_FC=true)
+        x = rand(Float32, 6, 14, 100)
+        ŷ = il(x)
+
+        y_1 = x[:, :, 1]
+        y_1[.!(Bool.(FC_SS_MASK))] .= FC_SS_scaled[.!(Bool.(FC_SS_MASK))]
+
+        @test ŷ[:, :, 1] == y_1
+    end
+
+    @testset "Insertion of fixed components in 𝐗" begin
+        x = rand(Float32, 8, 1, 10)
+
+        # ATTENTION: As the classifier part is untrained, we fake a sigmoid output here for testing purposes
+        # by setting a threshold at 0.5 in the masking function. This is would kill any gradient flow in a real training scenario!
+        m = create_model_shared_backbone(2//3, 3, 64,
+                                         (clas_out, reg_out) -> (mask_𝑣(clas_out .> 0.5, reg_out[1]), mask_𝐗(clas_out .> 0.5, reg_out[2])), scaled_FC=false)
+        _, 𝐗_pred = m(x)
+
+        unscaled_Si_in_Ol = unique(𝐗_pred[1, 3, :])
+        @test all(x -> isapprox(x, 0.0; atol=1e-6) || isapprox(x, 1/3; atol=1e-6), unscaled_Si_in_Ol)
+
+        m = create_model_shared_backbone(2//3, 3, 64,
+                                         (clas_out, reg_out) -> (mask_𝑣(clas_out .> 0.5, reg_out[1]), mask_𝐗(clas_out .> 0.5, reg_out[2])), scaled_FC=true)
+        _, 𝐗_pred = m(x)
+        scaled_Si_in_Ol = unique(𝐗_pred[1, 3, :])
+        @test all(x -> isapprox(x, 0.0, atol=1e-6) || isapprox(x, 1.0, atol=1e-6), scaled_Si_in_Ol)
     end
 
     @testset "Masking functions" begin
@@ -94,7 +123,7 @@
         m3 = create_model_pretrained_classifier(2//3, 2, 64,
                                                 (clas_out, reg_out) -> (mask_𝑣(clas_out, reg_out[1]), mask_𝐗(clas_out, reg_out[2])),
                                                 m1)
-        
+
         # Regressor branch structure
         reg = m3.layers[2]
         @test reg isa Chain
