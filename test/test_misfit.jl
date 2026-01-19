@@ -45,6 +45,9 @@
                     0.0 0.0 0.1 0.1 0.1;
                     0.0 0.0 0.1 0.0 0.0]
 
+        @test misfit.me_no_zeros(ŷ, y) ≈ 0.0
+        @test misfit.re_no_zeros(ŷ, y) ≈ 0.0 + eps(Float32)
+
         @test misfit.mae_no_zeros(ŷ, y) ≈ 2/7 * 0.1
         @test misfit.mre_no_zeros(ŷ, y) ≈ 2/7 * 1
 
@@ -57,6 +60,9 @@
         # alter some values in batch dimension
         ŷ_batched[3, 1, 2] = 0.3f0
         ŷ_batched[4, 3, 3] = 0.2f0
+
+        @test misfit.me_no_zeros(ŷ_batched, y_batched) ≈ -2/21 * 0.1
+        @test misfit.re_no_zeros(ŷ_batched, y_batched) ≈ -2/21 + eps(Float32)
 
         @test misfit.mae_no_zeros(ŷ_batched, y_batched) ≈ (6/21 * 0.1 + 1/21 * 0.2)
         @test misfit.mre_no_zeros(ŷ_batched, y_batched) ≈ (6/21 * 1 + 1/21 * 2)

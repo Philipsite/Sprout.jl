@@ -91,6 +91,15 @@ function loss_vol(ŷ, y; agg = mean, ϵ = 1e-3)
     return agg(abs.(ŷ[p] .- y[p]))
 end
 
+"""
+Mean error for non-zero y-values
+"""
+function me_no_zeros(ŷ, y; agg = mean)
+    non_zero_idx = y .!= 0.0
+
+    return agg(y[non_zero_idx] .- ŷ[non_zero_idx])
+end
+
 
 """
 Mean absolute error for non-zero y-values
@@ -103,7 +112,17 @@ end
 
 
 """
-Mean relative error for non-zero y-values
+Mean relative (non-absolute) error for non-zero y-values
+"""
+function re_no_zeros(ŷ, y; agg = mean)
+    non_zero_idx = y .!= 0.0
+
+    return agg((y[non_zero_idx] .- ŷ[non_zero_idx]) ./ (y[non_zero_idx]) .+ eps(Float32))
+end
+
+
+"""
+Mean relative (absolute) error for non-zero y-values
 """
 function mre_no_zeros(ŷ, y; agg = mean)
     non_zero_idx = y .!= 0.0
