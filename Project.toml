@@ -1,7 +1,7 @@
 name = "Sprout"
 uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
 authors = ["Philipsite <philip.hartmeier@hotmail.com>"]
-version = "0.2.5"
+version = "0.2.6"
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
