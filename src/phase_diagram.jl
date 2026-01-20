@@ -52,6 +52,20 @@ end
 Plot a mineral assemblage diagram over *P*–*T* space.
 """
 function plot_mineral_assemblage_diagram(asm_grid::Matrix, var_vec_grid::Matrix, P_bounds::Tuple, T_bounds::Tuple, color::Symbol)
+    fig = Figure(; size=(500, 500))
+    ax = Axis(fig[1, 1])
+
+    ax = plot_mineral_assemblage_diagram!(ax::Axis, asm_grid::Matrix, var_vec_grid::Matrix, P_bounds::Tuple, T_bounds::Tuple, color::Symbol)
+    return fig
+end
+"""
+Plot a mineral assemblage diagram over *P*–*T* space.
+"""
+function plot_mineral_assemblage_diagram!(ax::Axis, asm_grid::Matrix, var_vec_grid::Matrix, P_bounds::Tuple, T_bounds::Tuple, color::Symbol)
+    ax.aspect = 1.
+    ax.xlabel = L"Temperature\ [°C]"
+    ax.ylabel = L"Pressure\ [kbar]"
+
     palette = cgrad(color)
 
     n = size(asm_grid)[1]
@@ -66,8 +80,6 @@ function plot_mineral_assemblage_diagram(asm_grid::Matrix, var_vec_grid::Matrix,
     P_grid = Matrix{Float32}(repeat(P_rev, 1, n))
     T_grid = Matrix{Float32}(repeat(T', n, 1))
 
-    fig = Figure(; size=(500, 500))
-    ax = Axis(fig[1, 1],  xlabel=L"Temperature\ [°C]", ylabel=L"Pressure\ [kbar]", aspect = 1)
     hm = heatmap!(ax, T, P_rev, var_vec_grid'; colormap=palette, colorrange=(2, 7), interpolate=false)
 
     # Find unique values and their centroids
@@ -97,5 +109,5 @@ function plot_mineral_assemblage_diagram(asm_grid::Matrix, var_vec_grid::Matrix,
     text!(ax, centroids_x, centroids_y, text=labels,
           align=(:center, :center), fontsize=8, color=:white)
 
-    return fig
+    return ax
 end

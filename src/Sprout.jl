@@ -36,6 +36,6 @@ export hpt_classifier, hpt_regressor_pretrained_classifier, hpt_regressor_common
 export load_hyperparam_tuning_results, estimate_inference_time
 
 include("phase_diagram.jl")
-export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram
+export generate_mineral_assemblage_diagram, plot_mineral_assemblage_diagram, plot_mineral_assemblage_diagram!
 
 end

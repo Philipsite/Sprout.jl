@@ -1,3 +1,4 @@
+using CairoMakie
 
 @testset "phase_diagram.jl" begin
     n_layers = 2;
@@ -30,6 +31,13 @@
 
     @test begin
         fig = plot_mineral_assemblage_diagram(asm_grid, var_vec_grid, P_bounds, T_bounds, :batlow)
+        true
+    end
+
+    @test begin
+        fig = Figure(; size=(500, 500))
+        ax = Axis(fig[1, 1])
+        ax = plot_mineral_assemblage_diagram!(ax, asm_grid, var_vec_grid, P_bounds, T_bounds, :batlow)
         true
     end
 end
