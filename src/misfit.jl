@@ -117,7 +117,7 @@ Mean relative (non-absolute) error for non-zero y-values
 function re_no_zeros(ŷ, y; agg = mean)
     non_zero_idx = y .!= 0.0
 
-    return agg((y[non_zero_idx] .- ŷ[non_zero_idx]) ./ (y[non_zero_idx]) .+ eps(Float32))
+    return agg((y[non_zero_idx] .- ŷ[non_zero_idx]) ./ (y[non_zero_idx]))
 end
 
 
@@ -132,15 +132,45 @@ end
 
 
 """
-Mean absolute error treating correctly predicted zero y-values as trivial
+Helper function to find indices where either ŷ or y are non-zero
 """
-function mae_trivial_zeros(ŷ, y; agg = mean)
+function find_trivial_zeros(ŷ, y)
     non_zero_idx_y = y .!= 0.0
     non_zero_idx_ŷ = ŷ .!= 0.0
 
     non_zero_idx = non_zero_idx_y .| non_zero_idx_ŷ
 
+    return non_zero_idx
+end
+
+
+"""
+Mean error treating correctly predicted zero y-values as trivial
+"""
+function me_trivial_zeros(ŷ, y; agg = mean)
+    non_zero_idx = find_trivial_zeros(ŷ, y)
+
+    return agg(y[non_zero_idx] .- ŷ[non_zero_idx])
+end
+
+
+"""
+Mean absolute error treating correctly predicted zero y-values as trivial
+"""
+function mae_trivial_zeros(ŷ, y; agg = mean)
+    non_zero_idx = find_trivial_zeros(ŷ, y)
+
     return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]))
+end
+
+
+"""
+Mean relative (non-absolute) error treating correctly predicted zero y-values as trivial
+"""
+function re_trivial_zeros(ŷ, y; agg = mean, ϵ=eps(Float32))
+    non_zero_idx = find_trivial_zeros(ŷ, y)
+
+    return agg((y[non_zero_idx] .- ŷ[non_zero_idx]) ./ max.(y[non_zero_idx], ϵ))
 end
 
 
@@ -148,10 +178,7 @@ end
 Mean relative error treating correctly predicted zero y-values as trivial
 """
 function mre_trivial_zeros(ŷ, y; agg = mean, ϵ=eps(Float32))
-    non_zero_idx_y = y .!= 0.0
-    non_zero_idx_ŷ = ŷ .!= 0.0
-
-    non_zero_idx = non_zero_idx_y .| non_zero_idx_ŷ
+    non_zero_idx = find_trivial_zeros(ŷ, y)
 
     return agg(abs.(y[non_zero_idx] .- ŷ[non_zero_idx]) ./ max.(y[non_zero_idx], ϵ))
 end
