@@ -5,6 +5,8 @@
 
 A Julia package for surrogate modeling of multi-component phase equilibria — fast approximation of Gibbs energy minimisation using neural networks.
 
+![Phase diagram for a Harzburgite composition](assets/mineral_assemblage_diagram.png)
+
 ## Features
 
 > [!NOTE]
