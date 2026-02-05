@@ -1,6 +1,6 @@
 name = "Sprout"
 uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
-version = "0.2.6"
+version = "0.3.0"
 authors = ["Philipsite <philip.hartmeier@hotmail.com>"]
 
 [deps]
