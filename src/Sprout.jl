@@ -4,13 +4,16 @@ using Reexport: @reexport
 using ChainRulesCore
 using Flux, ParameterSchedulers, CUDA, cuDNN
 using Statistics
-using JLD2, CSV, DataFrames, Distributions, ProgressBars
+using JLD2, TOML, CSV, DataFrames
+using Distributions, ProgressBars
 @reexport using MAGEMin_C
 using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie
 
 include("phases_sb21.jl")
 export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS, IDX_phase_frac
+
+include("phases_in_database.jl")
 
 include("preprocessing.jl")
 export preprocess_data, one_hot_phase_stability

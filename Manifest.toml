@@ -2,7 +2,7 @@
 
 julia_version = "1.12.3"
 manifest_format = "2.0"
-project_hash = "e9b7268b884ed33ffff3c920742e891df05e357f"
+project_hash = "e1e735cc3746c3a84b72c9a9a0802123e76bcd85"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1938,10 +1938,10 @@ uuid = "171d559e-b47b-412a-8079-5efa626c420e"
 version = "0.1.15"
 
 [[deps.Sprout]]
-deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "Statistics", "cuDNN"]
+deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "Hwloc", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "Statistics", "cuDNN"]
 path = "."
 uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
-version = "0.2.6"
+version = "0.3.0"
 
 [[deps.StableRNGs]]
 deps = ["Random"]
