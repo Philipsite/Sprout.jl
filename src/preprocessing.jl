@@ -11,6 +11,8 @@ end
 Used within preprocess-functions.
 Set indices for the filtering.
 """
+#//TODO - Adapt this function to work with the phases not considered from the database summary TOML file / config TOML file
+# Further, this function should in the future return the indices to extract phase modes, solid solution compositions and site fractions
 function indices_of_stable_phases()
     # set up indices of stable phases > to extract phase fractions
     n_phases = length(PP) + length(SS)
@@ -39,6 +41,7 @@ Applies the following filters:
 - only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
 
 """
+#//TODO - Indices of what to extract should be passed, and no longer "appear" out of "thin air" within the function. 
 function preprocess_data(x_data::DataFrame, y_data::DataFrame)
     x = Matrix(Matrix{Float32}(x_data)')
     y = Matrix((Matrix{Float32}(y_data))')

@@ -1,5 +1,5 @@
 
-
+#TODO - This needs to be adapted to work with the phases not considered from the database summary TOML file / config TOML file.
 const FC_SS = reshape(SS_COMP_adj, 6, Int(length(SS_COMP_adj) / 6))
 Scaler_FC_SS = MinMaxScaler(reshape(FC_SS, size(FC_SS)..., 1))
 Scaler_FC_SS.min .= 0.0f0          # manually adjust min to 0.0; as fixed components can be zero if phase is not stable
