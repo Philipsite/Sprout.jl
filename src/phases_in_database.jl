@@ -208,3 +208,22 @@ function compute_component_variability(ss_data, em_names, n_oxides)
                            unique(em_comp_mat[j, :])[1] : 0.0 for j in 1:n_oxides])
     return var_mask, fixed_comp
 end
+
+
+"""
+Filter the pure phase composition, the variable component mask and the fixed component composition in solution phases
+to only exclude pure and solution phases from a database not considered in the surrogate model training.
+"""
+function filter_db_info(
+    db_info::DatabaseInfo,
+    pp_not_considered::Vector{String},
+    ss_not_considered::Vector{String}
+)
+    idx_pp_considered = findall(x -> x ∉ pp_not_considered, db_info.pp_names)
+    idx_ss_considered = findall(x -> x ∉ ss_not_considered, db_info.ss_names)
+    pp_comp                   = db_info.pp_comp[:, idx_pp_considered]
+    var_mask_components_in_ss = db_info.var_mask_components_in_ss[:, idx_ss_considered]
+    fixed_components_in_ss    = db_info.fixed_components_in_ss[:, idx_ss_considered]
+
+return pp_comp, var_mask_components_in_ss, fixed_components_in_ss
+end
