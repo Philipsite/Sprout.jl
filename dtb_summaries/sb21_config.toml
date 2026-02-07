@@ -1,0 +1,4 @@
+name = "sb21"
+database = "Stixrude & Lithgow-Bertelloni (2021)"
+pp_not_considered = ["co",]
+ss_not_considered = ["ppv",]
