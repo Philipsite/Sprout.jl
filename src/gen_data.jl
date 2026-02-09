@@ -1,3 +1,86 @@
+function generate_data(
+        n                     ::Int,
+        db_info               ::DatabaseInfo,
+        pressure_range_kbar   ::Tuple,
+        temperature_range_C   ::Tuple,
+        X_bulk                ::AbstractVector{<:AbstractVector{Float64}},
+        X_oxides              ::Vector{String},
+        sys_in                ::String;
+        seed                  ::Int = 42
+    ) ::AbstractArray{<:MAGEMin_C.out_struct}
+
+    db          = db_info.db_MAGEMin
+    oxides      = db_info.oxides
+
+    # @assert Set(oxides) == Set(X_oxides) "Oxides in db_info and X_bulk do not match."
+    # @assert oxides == X_oxides "Oxides in db_info and X_bulk do not match."
+
+    # generate P-T
+    rng = Xoshiro(seed)
+    pressure_kbar = rand(rng, Uniform(pressure_range_kbar[1], pressure_range_kbar[2]), n)
+    temperature_C = rand(rng, Uniform(temperature_range_C[1], temperature_range_C[2]), n)
+
+    # init MAGEMin
+    MAGEMin_db = Initialize_MAGEMin(db, solver=0, verbose=false)
+
+    out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=X_oxides, sys_in=sys_in)
+
+    Finalize_MAGEMin(MAGEMin_db)
+
+    return out
+end
+
+
+function extract_data(
+        outs                  ::AbstractArray{<:MAGEMin_C.out_struct},
+        db_info               ::DatabaseInfo;
+        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod]
+    ) ::Tuple{DataFrame, DataFrame}
+
+    n = length(outs)
+
+    # check that oxides in all out structs are identical
+    if !all([outs_ox[i] == outs_ox[1] for i in eachindex(outs_ox)])
+        @error "Not all out.oxides are identical."
+    end
+    oxides = outs[1].oxides
+
+    # pre-allocate arrays
+    ph_modes = zeros(length(phase_list), n)
+    ss_comps_moles = zeros(length(oxides) * length(phase_list), n)
+
+
+
+
+
+    # extract data
+    # use bulk_S as bulk composition, test with "molar conservence" showed less deviation.
+    # Is this because the mass residual in MAGEMin is not included into bulk_S? > Check with nico.
+    # //ANCHOR - This only works for SB21 which has no liquid phases, not given that this goes trough with other databases
+    bulks = reduce(hcat, [out_i.bulk_S for out_i in outs])
+
+    oxides_in_out = Matrix{String}(undef, 6, n)
+    ph_mode  = zeros(22, n)
+    # ph_ρ    = zeros(22, n)
+    ss_comp = zeros(90, n)
+    phys_prop = zeros(3, n)
+
+    @threads for i in ProgressBar(eachindex(outs))
+        oxides_in_out[:, i] .= outs[i].oxides
+    end
+    return DataFrame(), DataFrame()
+end
+
+
+function write_to_csv(
+        data                  ::Tuple{DataFrame, DataFrame},
+        filename              ::AbstractString,
+        phase_list            ::Vector{<:AbstractString}
+)
+return nothing
+end
+
+
 # Define mantle composition end-member after Kerswell et al. 2024
 # following "Xoxides = ["SiO2"; "CaO";"Al2O3"; "FeO"; "MgO"; "Na2O"]"
 DSUM_wt = [44.1, 0.22, 0.261, 7.96, 47.4, 0.042];
@@ -15,6 +98,8 @@ function generate_dataset(n::Int, filename_base::String;
                           λ_dirichlet           ::Real              = 100,
                           phase_list            ::Vector{String}    = [PP..., SS...],
                           save_to_csv           ::Bool              = true)
+
+    @warn "The function `generate_dataset` is deprecated and will be removed in future versions."
 
     # init random generator
     rng = Xoshiro(filename_base)
@@ -159,4 +244,126 @@ function generate_noisy_bulk_array(rng::Xoshiro, n::Int;
     end
 
     return X
+end
+
+
+
+# =====================================================================
+# (1) Generate bulks for Metapelites
+# =====================================================================
+const MOLAR_MASS = Dict(
+    "SiO2" => 60.083,
+    "TiO2" => 79.865,
+    "Al2O3" => 101.961,
+    "Cr2O3" => 151.989,
+    "Fe2O3" => 159.6874,
+    "NiO" => 74.692,
+    "FeO" => 71.8442,
+    "MnO" => 70.937,
+    "MgO" => 40.304,
+    "CaO" => 56.0774,
+    "Na2O" => 61.979,
+    "K2O" => 94.195,
+    "P2O5" => 141.9445,
+    "F" => 18.998,
+    "Cl" => 35.45,
+    "H2O" => 18.015,
+    "O" => 15.999
+)
+
+
+"""
+Assign seperate FeO and Fe2O3 (in wt%) to analyses with only FeO_total measurement.
+Sample the XF3+ form the μ±σ of bulk XFe3+ after Forshaw and Pattison (2021).
+"""
+function assign_missing_Fe2Fe3!(df_wt::DataFrame, X_Fe3::Float64, σ_XFe3::Float64; molar_mass_dict::Dict = MOLAR_MASS)::DataFrame
+    n_noFe3 = count(ismissing, df_wt[!, "Fe2O3"])
+
+    XFe3_dist = truncated(Normal(X_Fe3, σ_XFe3), 0., 1.)
+    XFe3 = rand(XFe3_dist, n_noFe3)
+
+    FeO_wt = df_wt[ismissing.(df_wt[!, "Fe2O3"]), "FeO"] .* (1 .- XFe3)
+    Fe2O3_wt = df_wt[ismissing.(df_wt[!, "Fe2O3"]), "FeO"] .* XFe3 .* (molar_mass_dict["Fe2O3"] / (2 * molar_mass_dict["FeO"]))
+
+    df_wt[ismissing.(df_wt[!, "Fe2O3"]), "FeO"] = FeO_wt
+    df_wt[ismissing.(df_wt[!, "Fe2O3"]), "Fe2O3"] = Fe2O3_wt
+
+    return df_wt
+end
+
+"""
+Convert wt to mol.
+"""
+function wt_to_mol(df_wt::DataFrame; molar_mass_dict::Dict = MOLAR_MASS)::DataFrame
+    molar_mass = [molar_mass_dict[oxide] for oxide in names(df_wt)]
+    df_mol = df_wt ./ molar_mass'
+
+    m = coalesce.(Matrix(df_mol), 0.0)
+    return DataFrame(m ./ sum(m, dims=2), names(df_mol))
+end
+
+"""
+Reduce the bulk CaO and get exclude P2O5 by projecting from Apatite.
+"""
+function project_from_Apatite(df_mol::DataFrame; min_CaO = eps(Float32))::DataFrame
+    df_mol[!, "CaO"] .= clamp.(df_mol[!, "CaO"] .- 10/3 .* df_mol[!, "P2O5"], min_CaO, Inf)
+    # drop P2O5 col
+    df_mol = select(df_mol, Not("P2O5"))
+    df_mol = DataFrame(Matrix(df_mol) ./ sum(Matrix(df_mol), dims=2), names(df_mol))
+end
+
+"""
+Pre-process the FPWMP22 dataset by:
+- Assigning FeO and Fe2O3 based on the bulk XFe3+ distribution after Forshaw and Pattison (2021).
+- Converting wt% to mol% and normalizing.
+- Projecting from Apatite to reduce CaO and exclude P2O5 (renormalizing after projection).
+"""
+function preprocess_fpwmp22(df::DataFrame, X_Fe3::Float64, σ_XFe3::Float64; min_CaO = eps(Float32), molar_mass_dict::Dict = MOLAR_MASS)::DataFrame
+    df = select(df, Not("LOI", "Total"))
+    df_wt = assign_missing_Fe2Fe3!(df, X_Fe3, σ_XFe3)
+    df_mol = wt_to_mol(df_wt; molar_mass_dict = molar_mass_dict)
+    df_mol_proj = project_from_Apatite(df_mol; min_CaO = min_CaO)
+
+    # Replace analyses with zero values with missing and drop
+    # this affects ~200 analyses where either Na2O or MnO are zero
+    df_mol_proj_no_zeros = mapcols(c -> replace(c, 0.0 => missing), df_mol_proj)
+    df_mol_proj_no_zeros = dropmissing(df_mol_proj_no_zeros)
+    return df_mol_proj_no_zeros
+end
+
+"""
+Sample a narrow Dirichlet distribution around a bulk vector to generate unique bulk compositions for surrogate model training.
+"""
+function add_ϵ_noise(
+    data_mol::Vector{Float64};
+    n::Int = 1,
+    λ_dirichlet::Number = 1000,
+    rng::Union{Random.AbstractRNG, Nothing} = nothing
+    )::Matrix{Float64}
+
+    rng = rng === nothing ? Xoshiro() : rng
+    return rand(rng, Dirichlet(data_mol .* λ_dirichlet), n)
+end
+
+"""
+Generate a bulk array by sampling bulks from a DataFrame of bulks (must be in mol% and normalized).
+Add ϵ noise to the bulks by sampling from a narrow Dirichlet distribution around each bulk vector
+to generate unique bulk compositions for surrogate model training.
+"""
+function generate_bulks_from_df(df::DataFrame, n::Int; λ_dirichlet::Number = 1000, seed::Union{Number, Nothing} = nothing)::Tuple{Vector{Vector{Float64}}, Vector{String}}
+    data_as_mat = Matrix(Matrix(df)')
+
+    # random shuffle the columns of the data matrix to avoid any bias in the order of the bulks
+    rng = seed === nothing ? Xoshiro() : Xoshiro(seed)
+    data_as_mat = data_as_mat[:, shuffle(rng, 1:size(data_as_mat, 2))]
+    x_oxides = names(df)
+
+    X = Vector{Vector{Float64}}()
+    for i in 1:n
+        idx_in_fpwmp22 = mod1(i, size(data_as_mat, 2))
+        bulk_noisy = add_ϵ_noise(vec(data_as_mat[:, idx_in_fpwmp22]), n=1, λ_dirichlet=λ_dirichlet, rng=rng)
+        push!(X, bulk_noisy[:, 1])
+    end
+
+    return (X, x_oxides)
 end

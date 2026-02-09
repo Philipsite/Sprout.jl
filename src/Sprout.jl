@@ -30,6 +30,7 @@ export misfit
 
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
+export preprocess_fpwmp22, generate_bulks_from_df
 
 include("training.jl")
 export train_loop, post_training_plots
