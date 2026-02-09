@@ -2,7 +2,7 @@
 
 julia_version = "1.12.3"
 manifest_format = "2.0"
-project_hash = "6d11893552717c201d6f20f9d57607e7e18e5073"
+project_hash = "98748d466d4b13717e4a89fc6979bc73979238b7"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -574,9 +574,9 @@ version = "0.1.1"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "d60eb76f37d7e5a40cc2e7c36974d864b82dc802"
+git-tree-sha1 = "6522cfb3b8fe97bec632252263057996cbd3de20"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.17.1"
+version = "1.18.0"
 
     [deps.FileIO.extensions]
     HTTPExt = "HTTP"
@@ -1938,7 +1938,7 @@ uuid = "171d559e-b47b-412a-8079-5efa626c420e"
 version = "0.1.15"
 
 [[deps.Sprout]]
-deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "Hwloc", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "Statistics", "TOML", "cuDNN"]
+deps = ["BenchmarkTools", "CSV", "CUDA", "CairoMakie", "ChainRulesCore", "DataFrames", "Dates", "Distributions", "Flux", "Hwloc", "JLD2", "MAGEMin_C", "ParameterSchedulers", "ProgressBars", "Random", "Reexport", "StaticArrays", "Statistics", "TOML", "cuDNN"]
 path = "."
 uuid = "0e921d4c-edff-46ec-ae31-e277f0125084"
 version = "0.3.0"
