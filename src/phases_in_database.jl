@@ -126,6 +126,7 @@ Information about thermodynamic database
 - `idx_variable_oxide_components_in_ss_flat` : Vector of indices of variable components in solution phases, flattened
 """
 struct DatabaseInfo
+    db_MAGEMin                  ::String
     oxides                      ::Vector{String}
     n_oxides                    ::Int
     pp_names                    ::Vector{String}
@@ -147,6 +148,7 @@ Retrieves relevant information from a thermodynamic database summary stored in a
 function load_db_info(toml_path::String)::DatabaseInfo
     data        = TOML.parsefile(toml_path)
 
+    db          = data["name"]
     oxides      = data["oxides"]
     n_oxides    = length(oxides)
 
@@ -176,6 +178,7 @@ function load_db_info(toml_path::String)::DatabaseInfo
     idx_variable_oxide_components_in_ss_flat = findall(vec(var_mask_components_in_ss) .== 1.0)
 
     db_info = DatabaseInfo(
+        db,
         oxides,
         n_oxides,
         pp_names,
