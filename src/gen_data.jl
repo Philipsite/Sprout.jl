@@ -23,8 +23,8 @@ function generate_dataset(n::Int, filename_base::String;
     MAGEMin_db = Initialize_MAGEMin(database, solver=0, verbose=false)
 
     # generate P-T-X_bulk
-    pressure_kbar = rand(rng, pressure_range_kbar[1]:pressure_range_kbar[2], n)
-    temperature_C = rand(rng, temperature_range_C[1]:temperature_range_C[2], n)
+    pressure_kbar = rand(rng, Uniform(pressure_range_kbar[1], pressure_range_kbar[2]), n)
+    temperature_C = rand(rng, Uniform(temperature_range_C[1], temperature_range_C[2]), n)
 
     if noisy_bulk
         X_bulk = generate_noisy_bulk_array(rng, n; bulk_em_1=bulk_em_1, bulk_em_2=bulk_em_2, λ=λ_dirichlet)
