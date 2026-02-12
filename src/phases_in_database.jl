@@ -11,7 +11,7 @@ Extracts relevant information from a thermodynamic database in MAGEMin, includin
 - Pure phases and their compositions
 - Solution phases, their endmembers, site fractions, and compositions
 """
-function extract_db_info(dtb::String)
+function extract_db_info(dtb::String)::Dict
     db_info = retrieve_solution_phase_information(dtb)
 
     # some properties must be retrieved a bit hacky... by accessing the MAGEMin C struct directly...
@@ -210,6 +210,67 @@ function compute_component_variability(ss_data, em_names, n_oxides)
     fixed_comp = Float32.([length(unique(em_comp_mat[j, :])) == 1 ?
                            unique(em_comp_mat[j, :])[1] : 0.0 for j in 1:n_oxides])
     return var_mask, fixed_comp
+end
+
+
+"""
+Update `DatabaseInfo` to consider phases resulting from solid solutions with solvi, e.g., 'mu' and 'pat'.
+Solvus names should be provided in the `DB_config.toml` and follow the convention used by MAGEMin.
+"""
+function update_solvus_phases_db_info(db_info::DatabaseInfo, db_config::Dict{String, Any})
+    solvus_names = db_config["solvus_names"]
+
+    # (1) update ss_names and n_ss
+    ss_names_updated = reduce(vcat, [haskey(solvus_names, ss) ? solvus_names[ss] : [ss] for ss in db_info.ss_names])
+    n_ss_updated = length(ss_names_updated)
+
+    # (2) update ss_em_names and ss_sf_names
+    ss_em_names_updated = reduce(vcat, [haskey(solvus_names, ss) ? repeat([db_info.ss_em_names[i]], length(solvus_names[ss])) : [db_info.ss_em_names[i]] for (i, ss) in enumerate(db_info.ss_names)])
+    ss_sf_names_updated = reduce(vcat, [haskey(solvus_names, ss) ? repeat([db_info.ss_sf_names[i]], length(solvus_names[ss])) : [db_info.ss_sf_names[i]] for (i, ss) in enumerate(db_info.ss_names)])
+    n_sf_updated = sum(length.(ss_sf_names_updated))
+
+    # (3) update var_mask_components_in_ss and fixed_components_in_ss
+    # Duplicate columns for phases with solvi
+    var_mask_updated = Matrix{Float32}(undef, db_info.n_oxides, n_ss_updated)
+    fixed_comp_updated = Matrix{Float32}(undef, db_info.n_oxides, n_ss_updated)
+
+    col_idx = 1
+    for (i, ss) in enumerate(db_info.ss_names)
+        if haskey(solvus_names, ss)
+            # Duplicate the column for each phase in the solvus
+            n_solvus_phases = length(solvus_names[ss])
+            for j in 1:n_solvus_phases
+                var_mask_updated[:, col_idx] = db_info.var_mask_components_in_ss[:, i]
+                fixed_comp_updated[:, col_idx] = db_info.fixed_components_in_ss[:, i]
+                col_idx += 1
+            end
+        else
+            # Keep the column as is
+            var_mask_updated[:, col_idx] = db_info.var_mask_components_in_ss[:, i]
+            fixed_comp_updated[:, col_idx] = db_info.fixed_components_in_ss[:, i]
+            col_idx += 1
+        end
+    end
+
+    # (4) update idx_variable_oxide_components_in_ss_flat
+    idx_variable_oxide_components_in_ss_flat_updated = findall(vec(var_mask_updated) .== 1.0)
+
+    return DatabaseInfo(
+        db_info.db_MAGEMin,
+        db_info.oxides,
+        db_info.n_oxides,
+        db_info.pp_names,
+        ss_names_updated,     # updated field
+        ss_em_names_updated,  # updated field
+        ss_sf_names_updated,  # updated field
+        db_info.n_pp,
+        n_ss_updated,         # updated field
+        n_sf_updated,         # updated field
+        db_info.pp_comp,
+        var_mask_updated,     # updated field
+        fixed_comp_updated,   # updated field
+        idx_variable_oxide_components_in_ss_flat_updated  # updated field
+    )
 end
 
 
