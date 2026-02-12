@@ -5,7 +5,7 @@ Generate a mineral assemblage diagram over *P*–*T* space for a given bulk rock
 
 The `classifier_model` should be a Flux model that takes as input a vector of the form `[P, T, X...]`, and outputs a vector  (20, BATCHSIZE, 1) of probabilities for each mineral phase being present in the assemblage.
 """
-function generate_mineral_assemblage_diagram(P_bounds::Tuple, T_bounds::Tuple, X::Vector{Float32}, resolution::Int, classifier_model::Any, x_norm::Any)
+function generate_mineral_assemblage_diagram(P_bounds::Tuple, T_bounds::Tuple, X::Vector{Float32}, resolution::Int, classifier_model::Any, x_norm::Any; phase_names::Union{Vector{String}, Nothing} = nothing)
     # Create a P-T grid
     n = resolution
     P = range(P_bounds[1], P_bounds[2], length=n)
@@ -28,15 +28,18 @@ function generate_mineral_assemblage_diagram(P_bounds::Tuple, T_bounds::Tuple, X
     # predict assemblages, convert prediction into BitMatrix with 0.5 activation threshold
     ŷ = classifier_model(input_vecs_n) .> 0.5
 
-    # filter phase_names for phases that are never stable
-    phase_names = [phase for (idx, phase) in enumerate([PP..., SS...]) if idx ∉ IDX_OF_PHASES_NEVER_STABLE]
+    # //TODO - This was a dirsty fix, how phase names are read should be handled with a clean solution
+    if isnothing(phase_names)
+        # filter phase_names for phases that are never stable
+        phase_names = [phase for (idx, phase) in enumerate([PP..., SS...]) if idx ∉ IDX_OF_PHASES_NEVER_STABLE]
+    end
 
     # tidy up predictions into a grid of assemblages & variance
     asm_vec = []
     var_vec = []
     for i in eachindex(1:size(ŷ, 2))
         asm = phase_names[ŷ[:, i, 1]]
-        var = 6 - length(asm) + 2
+        var = (length(X) - 2) - length(asm) + 2     # N_components - N_phases + 2
         push!(asm_vec, join(asm, "-"))
         push!(var_vec, var)
     end
