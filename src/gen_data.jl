@@ -12,8 +12,8 @@ function generate_data(
     db          = db_info.db_MAGEMin
     oxides      = db_info.oxides
 
+    #NOTE - this is commented, need an idea of how to deal with Fe2O3 / O that can be both present.
     # @assert Set(oxides) == Set(X_oxides) "Oxides in db_info and X_bulk do not match."
-    # @assert oxides == X_oxides "Oxides in db_info and X_bulk do not match."
 
     # generate P-T
     rng = Xoshiro(seed)
@@ -25,59 +25,216 @@ function generate_data(
 
     out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=X_oxides, sys_in=sys_in)
 
+    # filter out for successful minimizations
+    out = filter(o -> o.status == 0, out)
+    while length(out) < n
+        @warn "Only $(length(out)) successful minimizations out of $n. Regenerate to reach target of $n minimizations."
+
+        p_i = rand(rng, Uniform(pressure_range_kbar[1], pressure_range_kbar[2]), n - length(out))
+        t_i = rand(rng, Uniform(temperature_range_C[1], temperature_range_C[2]), n - length(out))
+        X_i = [X_bulk[rand(rng, 1:length(X_bulk))] for _ in 1:(n - length(out))]
+
+        out_i = multi_point_minimization(p_i, t_i, MAGEMin_db, X=X_i, Xoxides=X_oxides, sys_in=sys_in)
+        out_i = filter(o -> o.status == 0, out_i)
+        out = vcat(out, out_i)
+    end
+
     Finalize_MAGEMin(MAGEMin_db)
 
     return out
 end
 
 
+function get_mineral_name(db, ss, SS_vec; unambiguous=false)
+    if unambiguous
+    mineral_name = ss
+
+    if db == "ig" || db == "igad"
+        x = SS_vec.compVariables
+        if ss == "spl"
+            if x[3] - 0.5 > 0.0;        mineral_name = "cm";
+            elseif x[4] - 0.5 > 0.0;    mineral_name = "usp";
+            elseif x[2] - 0.5 > 0.0;    mineral_name = "mgt";
+            else                        mineral_name = "spl";    end
+        elseif ss == "fsp"
+            if x[2] - 0.5 > 0.0;       mineral_name = "afs";
+            else                        mineral_name = "pl";    end
+        elseif ss == "mu"
+            if x[4] - 0.5 > 0.0;        mineral_name = "pat";
+            else                        mineral_name = "mu";    end
+        elseif ss == "amp"
+            if x[3] - 0.5 > 0.0;        mineral_name = "gl";
+            elseif -x[3] -x[4] + 0.2 > 0.0;   mineral_name = "act";
+            else
+                if x[6] < 0.1;          mineral_name = "cumm";
+                elseif -1/2*x[4]+x[6]-x[7]-x[8]-x[2]+x[3]>0.5;      mineral_name = "tr";
+                else                    mineral_name = "amp";    end
+            end
+        elseif ss == "ilm"
+            if -x[1] + 0.5 > 0.0;       mineral_name = "hem";
+            else                        mineral_name = "ilm";   end
+        elseif ss == "nph"
+            if x[2] - 0.5 > 0.0;       mineral_name = "K-nph";
+            else                        mineral_name = "nph";   end
+        elseif ss == "cpx"
+            if x[3] - 0.6 > 0.0;        mineral_name = "pig";
+            elseif x[4] - 0.5 > 0.0;    mineral_name = "Na-cpx";
+            else                        mineral_name = "cpx";   end
+        end
+
+    elseif db == "mp" || db == "mpe" || db == "mb" || db == "ume" || db == "mbe"
+        x = SS_vec.compVariables
+        if ss == "sp"
+            if x[2] - 0.5 > 0.0;        mineral_name = "sp";
+            else                        mineral_name = "smt";    end        # UPDATED mt > smt
+        elseif ss == "spl"
+            if x[3] - 0.5 > 0.0;        mineral_name = "cm";
+            elseif x[2] - 0.5 > 0.0;    mineral_name = "mgt";
+            else                        mineral_name = "spl";    end        # UPDATED sp > spl
+        elseif ss == "fsp"
+            if x[2] - 0.5 > 0.0;       mineral_name = "afs";
+            else                        mineral_name = "pl";    end
+        elseif ss == "mu"
+            if x[4] - 0.5 > 0.0;        mineral_name = "pat";
+            else                        mineral_name = "mu";    end
+        elseif ss == "amp"
+            if x[3] - 0.5 > 0.0;        mineral_name = "gl";
+            elseif -x[3]-x[4]+0.2>0.0;  mineral_name = "act";
+            else
+                if x[6] < 0.1;          mineral_name = "cumm";
+                elseif -1/2*x[4]+x[6]-x[7]-x[8]-x[2]+x[3]>0.5;      mineral_name = "tr";
+                else                    mineral_name = "amp";    end
+            end
+        elseif ss == "ilmm"
+            if x[1] - 0.5 > 0.0;        mineral_name = "ilmm";
+            else                        mineral_name = "hemm";   end
+        elseif ss == "ilm"
+            if 1.0 - x[1] > 0.5;        mineral_name = "hem";
+            else                        mineral_name = "ilm";   end
+        elseif ss == "dio"
+            if x[2] > 0.0 && x[2] <= 0.3;       mineral_name = "dio";
+            elseif x[2] > 0.3 && x[2] <= 0.7;   mineral_name = "omph";
+            else                                mineral_name = "jd";   end
+        elseif ss == "occm"
+            if x[2] > 0.5;              mineral_name = "sid";
+            elseif x[3] > 0.5;          mineral_name = "ank";
+            elseif x[1] > 0.25 && x[3] < 0.01;         mineral_name = "mag";
+            else                        mineral_name = "cc";   end
+        elseif ss == "oamp"
+            if x[2] < 0.3;              mineral_name = "anth";  #compositional variable y
+            else                        mineral_name = "ged";   end
+        end
+
+    end
+
+    else
+        @error "Using ambiguous mineral names is a terrible idea!"
+    end
+
+    return mineral_name
+end
+
+
 function extract_data(
         outs                  ::AbstractArray{<:MAGEMin_C.out_struct},
         db_info               ::DatabaseInfo;
-        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod]
+        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod],
+        name_solvus           ::Bool = false
     ) ::Tuple{DataFrame, DataFrame}
 
     n = length(outs)
 
-    # check that oxides in all out structs are identical
-    if !all([outs_ox[i] == outs_ox[1] for i in eachindex(outs_ox)])
-        @error "Not all out.oxides are identical."
-    end
-    oxides = outs[1].oxides
+    db          = db_info.db_MAGEMin
+    oxides      = db_info.oxides
+    n_oxides    = db_info.n_oxides
+    pp_names    = db_info.pp_names
+    ss_names    = db_info.ss_names
+    sf_names    = db_info.ss_sf_names
 
-    # pre-allocate arrays
-    ph_modes = zeros(length(phase_list), n)
-    ss_comps_moles = zeros(length(oxides) * length(phase_list), n)
+    # calculate the start_idx for the sf vector for each solid solution
+    start_idx_sf = cumsum(length.(db_info.ss_sf_names[1:end-1])) .+ 1
+    start_idx_sf = vcat(1, start_idx_sf)
+
+    phases = vcat(pp_names, ss_names)
+    n_phases = db_info.n_pp + db_info.n_ss
+    n_ss = db_info.n_ss
+    n_sf = db_info.n_sf
 
 
+    # check that oxides in all out structs are identical and match the oxides in db_info
+    @assert all([outs[i].oxides == outs[1].oxides for i in eachindex(outs)]) "Not all out.oxides are identical."
+    @assert Set(oxides) == Set(outs[1].oxides) "Oxides in db_info and X_bulk do not match. \n Oxides in db_info: $(oxides) \n Oxides in out: $(outs[1].oxides)"
 
+    # pre-allocate X arrays
+    pressure_kbar = zeros(n)
+    temperature_C = zeros(n)
+    bulks = zeros(length(oxides), n)
 
+    # pre-allocate Y arrays
+    ph_modes_mol   = zeros(n_phases, n)
+    ss_comps_mol   = zeros(n_oxides * n_ss, n)
+    ss_sf          = zeros(n_sf, n)
 
-    # extract data
-    # use bulk_S as bulk composition, test with "molar conservence" showed less deviation.
-    # Is this because the mass residual in MAGEMin is not included into bulk_S? > Check with nico.
-    # //ANCHOR - This only works for SB21 which has no liquid phases, not given that this goes trough with other databases
-    bulks = reduce(hcat, [out_i.bulk_S for out_i in outs])
-
-    oxides_in_out = Matrix{String}(undef, 6, n)
-    ph_mode  = zeros(22, n)
-    # ph_ρ    = zeros(22, n)
-    ss_comp = zeros(90, n)
-    phys_prop = zeros(3, n)
+    phys_props     = zeros(length(bulk_params), n)
 
     @threads for i in ProgressBar(eachindex(outs))
-        oxides_in_out[:, i] .= outs[i].oxides
+        out_i = outs[i]
+
+        pressure_kbar[i] = out_i.P_kbar
+        temperature_C[i] = out_i.T_C
+        bulks[:, i] = out_i.bulk
+
+        # extract indices of predicted phases in the phase list (from db_info)
+        ph_i = out_i.ph
+
+        if name_solvus == true
+            for i=1:out_i.n_SS
+                ph_i[i] = get_mineral_name(db, ph_i[i], out_i.SS_vec[i], unambiguous=true)
+            end
+        end
+
+        indices_in_phases = [findfirst(.==(p), phases) for p in ph_i]
+        indices_in_ss = [findfirst(.==(s), ss_names) for s in ph_i if s in ss_names]
+
+        # add ph_mode
+        ph_modes_mol[indices_in_phases, i] .= out_i.ph_frac
+        # add ss_comp
+        indices_ss_in_ss_comps_mol = vcat([vcat((idx-1)*n_oxides+1:(idx-1)*n_oxides+n_oxides) for idx in indices_in_ss]...)
+        ss_comps_mol[indices_ss_in_ss_comps_mol, i] .= reduce(vcat, [ss.Comp for ss in out_i.SS_vec])
+        # add ss_sf
+        indices_sf_in_sf = vcat([start_idx_sf[idx]:(start_idx_sf[idx + 1] - 1) for idx in indices_in_ss]...)
+        ss_sf[indices_sf_in_sf, i] .= reduce(vcat, [ss.siteFractions for ss in out_i.SS_vec])
+
+        # TODO - add phys_prop
+
     end
-    return DataFrame(), DataFrame()
+
+    # create DataFrames to write to CSV
+    x_names = ["P_kbar", "T_C", oxides...]
+    y_names = [(phases .* "_mol_frac")...,
+               vcat([repeat([ss], n_oxides) .* ("_" .* oxides)  for ss in ss_names]...)...,
+               vcat([repeat([ss], length(sf_names[idx])) .* ("_" .* sf_names[idx]) for (idx, ss) in enumerate(ss_names)]...)...,
+               String.(bulk_params)...]
+
+    x_data = vcat(pressure_kbar', temperature_C', bulks)
+    y_data = vcat(ph_modes_mol,
+                  ss_comps_mol,
+                  ss_sf,
+                  phys_props)
+
+    x_data = DataFrame(x_data', Symbol.(x_names))
+    y_data = DataFrame(y_data', Symbol.(y_names))
+    return x_data, y_data
 end
 
 
 function write_to_csv(
         data                  ::Tuple{DataFrame, DataFrame},
-        filename              ::AbstractString,
-        phase_list            ::Vector{<:AbstractString}
-)
-return nothing
+        filename              ::AbstractString
+    )
+    x_data, y_data = data
+    CSV.write(filename * "_x.csv", x_data)
+    CSV.write(filename * "_y.csv", y_data)
 end
 
 
