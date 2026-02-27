@@ -5,7 +5,7 @@ using ChainRulesCore
 using Flux, ParameterSchedulers, CUDA, cuDNN
 using Statistics
 using JLD2, TOML, CSV, DataFrames
-using Distributions, ProgressBars
+using Distributions, ProgressBars, ProgressMeter
 @reexport using MAGEMin_C
 using Base.Threads, Random, Dates, BenchmarkTools
 using CairoMakie

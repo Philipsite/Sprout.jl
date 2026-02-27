@@ -1,3 +1,112 @@
+
+
+"""
+Calculate W_G values from W, P and T as (WG = WH - T*WS + P*WV),
+where P is in kbar and T in K.
+"""
+function calculate_w_g(W::Matrix{Float64}, pressure_kbar::Float64, temperature_K::Float64)
+    # calculate the g values from WG = WH - T*WS + P*WV, using P[kbar] and T[K] to match MAGEMin's calculation
+    return W[:,1] .- temperature_K .* W[:,2] .+ pressure_kbar .* W[:,3]
+end
+
+"""
+A custom version of 'multi_point_minimization()' that allows modification
+of the thermodynamic parameters (gbase and W) for specified phases.
+"""
+function mpm_custom(pressure_kbar   ::T,
+                    temperature_C   ::T,
+                    MAGEMin_db      ::MAGEMin_Data,
+                    X               ::Vector{T},
+                    Xoxides         ::Vector{String},
+                    sys_in          ::String;
+                    mod_phases      ::Union{Vector{String}, Nothing}                    = nothing,
+                    W               ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
+                    ∆G°             ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
+                    name_solvus     ::Bool                                                    = false,
+                    progressbar     ::Bool                                                    = true
+                    ) where {T  <: Vector{<:AbstractFloat}}
+
+    outs = Vector{MAGEMin_C.gmin_struct{Float64, Int64}}(undef, length(pressure_kbar))
+    # main loop
+    if progressbar
+        progr = Progress(length(pressure_kbar), desc="Computing $(length(pressure_kbar)) points...") # progress meter
+    end
+
+    @threads :static for i in eachindex(pressure_kbar)
+        id          = Threads.threadid()
+        gv          = MAGEMin_db.gv[id]
+        z_b         = MAGEMin_db.z_b[id]
+        DB          = MAGEMin_db.DB[id]
+        splx_data   = MAGEMin_db.splx_data[id]
+
+        gv = define_bulk_rock(gv, X[i], Xoxides, sys_in, MAGEMin_db.db)
+        gv, z_b, DB, splx_data = pwm_init(pressure_kbar[i], temperature_C[i], gv, z_b, DB, splx_data)
+
+        ss_names  = unsafe_string.(unsafe_wrap(Vector{Ptr{Int8}}, gv.SS_list, gv.len_ss))
+        ss_struct = unsafe_wrap(Vector{LibMAGEMin.SS_ref},DB.SS_ref_db,gv.len_ss)
+
+        # modify the gbase and W values for each phase in mod_phases
+        if !isnothing(mod_phases)
+            for j in eachindex(mod_phases)
+                phase = mod_phases[j]
+                ss_idx = findfirst(x->x==phase, ss_names)
+
+                ss_gbase = unsafe_wrap(Vector{Float64}, ss_struct[ss_idx].gbase, ss_struct[ss_idx].n_em)
+                ss_gbase_mod = copy(ss_gbase)
+                if !isnothing(∆G°)
+                    ss_gbase_mod += ∆G°[i][j]
+                end
+                if !isnothing(W)
+                    w_g = calculate_w_g(W[i][j], pressure_kbar[i], temperature_C[i] + 273.15)
+                end
+                unsafe_copyto!(ss_struct[ss_idx].W, pointer(w_g), ss_struct[ss_idx].n_w)
+                unsafe_copyto!(ss_struct[ss_idx].gbase, pointer(ss_gbase_mod), ss_struct[ss_idx].n_em)
+            end
+        else
+            @info "mpm_custom called without modified parameters. Use multi_point_minimization instead!"
+        end
+
+        out = pwm_run(gv, z_b, DB, splx_data, name_solvus=name_solvus)
+        outs[i]   = deepcopy(out)
+
+        if progressbar
+            next!(progr)
+        end
+    end
+
+    if progressbar
+        finish!(progr)
+    end
+
+    return outs
+end
+function mpm_custom(pressure_kbar   ::T,
+                    temperature_C   ::T,
+                    MAGEMin_db      ::MAGEMin_Data,
+                    X               ::Vector{T},
+                    Xoxides         ::Vector{String},
+                    sys_in          ::String;
+                    mod_phases      ::Union{Vector{String}, Nothing}                = nothing,
+                    W               ::Union{Vector{<:Matrix{<:AbstractFloat}}, Nothing}  = nothing,
+                    ∆G°             ::Union{Vector{<:Vector{<:AbstractFloat}}, Nothing}  = nothing,
+                    name_solvus     ::Bool                                             = false,
+                    progressbar     ::Bool                                             = true
+                    ) where {T  <: AbstractFloat}
+
+    pressure_kbar = [pressure_kbar]
+    temperature_C = [temperature_C]
+    X = [X]
+    if !isnothing(W)
+        W = [W]
+    end
+    if !isnothing(∆G°)
+        ∆G° = [∆G°]
+    end
+
+    return mpm_custom(pressure_kbar, temperature_C, MAGEMin_db, X, Xoxides, sys_in; mod_phases=mod_phases, W=W, ∆G°=∆G°, name_solvus=name_solvus, progressbar=progressbar)[1]
+end
+
+
 function generate_data(
         n                     ::Int,
         db_info               ::DatabaseInfo,
@@ -6,7 +115,10 @@ function generate_data(
         X_bulk                ::AbstractVector{<:AbstractVector{Float64}},
         X_oxides              ::Vector{String},
         sys_in                ::String;
-        seed                  ::Int = 42
+        modified_phases       ::Union{Vector{String}, Nothing}                    = nothing,
+        W               ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
+        ∆G°             ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
+        seed                  ::Int                                                 = 42
     ) ::AbstractArray{<:MAGEMin_C.out_struct}
 
     db          = db_info.db_MAGEMin
@@ -23,7 +135,13 @@ function generate_data(
     # init MAGEMin
     MAGEMin_db = Initialize_MAGEMin(db, solver=0, verbose=false)
 
-    out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=X_oxides, sys_in=sys_in)
+    if !isnothing(modified_phases)
+        @info "Generating data with altered thermodynamic properties for phases: $(modified_phases)."
+        @assert !isnothing(W) || !isnothing(∆G°) "If modified_phases is provided, W or ∆G° must also be provided."
+        out = mpm_custom(pressure_kbar, temperature_C, MAGEMin_db, X_bulk, X_oxides, sys_in; mod_phases=modified_phases, W=W, ∆G°=∆G°)
+    else
+        out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=X_oxides, sys_in=sys_in)
+    end
 
     # filter out for successful minimizations
     out = filter(o -> o.status == 0, out)
@@ -34,7 +152,15 @@ function generate_data(
         t_i = rand(rng, Uniform(temperature_range_C[1], temperature_range_C[2]), n - length(out))
         X_i = [X_bulk[rand(rng, 1:length(X_bulk))] for _ in 1:(n - length(out))]
 
-        out_i = multi_point_minimization(p_i, t_i, MAGEMin_db, X=X_i, Xoxides=X_oxides, sys_in=sys_in)
+        if !isnothing(modified_phases)
+            @info "Generating data with altered thermodynamic properties for phases: $(modified_phases)."
+            W_i = [W[rand(rng, 1:length(W))] for _ in 1:(n - length(out))]
+            ∆G°_i = [∆G°[rand(rng, 1:length(∆G°))] for _ in 1:(n - length(out))]
+            out_i = mpm_custom(p_i, t_i, MAGEMin_db, X_i, X_oxides, sys_in; mod_phases=modified_phases, W=W_i, ∆G°=∆G°_i)
+        else
+            out_i = multi_point_minimization(p_i, t_i, MAGEMin_db, X=X_i, Xoxides=X_oxides, sys_in=sys_in)
+        end
+
         out_i = filter(o -> o.status == 0, out_i)
         out = vcat(out, out_i)
     end
@@ -237,7 +363,9 @@ function write_to_csv(
     CSV.write(filename * "_y.csv", y_data)
 end
 
-
+#======================================================================
+# LEGACY CODE: generate_dataset()
+=======================================================================#
 # Define mantle composition end-member after Kerswell et al. 2024
 # following "Xoxides = ["SiO2"; "CaO";"Al2O3"; "FeO"; "MgO"; "Na2O"]"
 DSUM_wt = [44.1, 0.22, 0.261, 7.96, 47.4, 0.042];
@@ -475,17 +603,18 @@ Pre-process the FPWMP22 dataset by:
 - Converting wt% to mol% and normalizing.
 - Projecting from Apatite to reduce CaO and exclude P2O5 (renormalizing after projection).
 """
-function preprocess_fpwmp22(df::DataFrame, X_Fe3::Float64, σ_XFe3::Float64; min_CaO = eps(Float32), molar_mass_dict::Dict = MOLAR_MASS)::DataFrame
+function preprocess_fpwmp22(df::DataFrame, X_Fe3::Float64, σ_XFe3::Float64; min_CaO = eps(Float32), min_val = eps(Float32), molar_mass_dict::Dict = MOLAR_MASS)::DataFrame
     df = select(df, Not("LOI", "Total"))
     df_wt = assign_missing_Fe2Fe3!(df, X_Fe3, σ_XFe3)
     df_mol = wt_to_mol(df_wt; molar_mass_dict = molar_mass_dict)
     df_mol_proj = project_from_Apatite(df_mol; min_CaO = min_CaO)
 
-    # Replace analyses with zero values with missing and drop
-    # this affects ~200 analyses where either Na2O or MnO are zero
+    # Replace analyses with zero values with missing
     df_mol_proj_no_zeros = mapcols(c -> replace(c, 0.0 => missing), df_mol_proj)
-    df_mol_proj_no_zeros = dropmissing(df_mol_proj_no_zeros)
-    return df_mol_proj_no_zeros
+    # Replace analyses with values below min_val with missing
+    df_mol_proj_no_zeros_or_small = mapcols(c -> map(x -> ismissing(x) ? x : (x < min_val ? missing : x), c), df_mol_proj_no_zeros)
+    df_mol_proj_no_zeros_or_small = dropmissing(df_mol_proj_no_zeros_or_small)
+    return df_mol_proj_no_zeros_or_small
 end
 
 """

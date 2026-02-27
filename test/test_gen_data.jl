@@ -32,6 +32,7 @@
     @test out[1].bulkMod ≈ y[2, ["bulk_modulus"]]...
     @test out[1].shearMod ≈ y[2, ["shear_modulus"]]...
 
+
     @testset "metapelites" begin
 
         # corresponds to rentires 1, 150 and 800 in the FPWMP 2022 database
@@ -61,12 +62,94 @@
         gt_fpwmp22_800 = [65.47, 0.62, 18.51, 0.72, 4.22, 0.04, 4.36, 0.08, 0.90, 5.08]
         gt_fpwmp22_800 ./= sum(gt_fpwmp22_800)
 
-        pred_fpwmp22_1 = preprocess_fpwmp22(fpwmp22_testdata[1:1, :], 0., eps(Float64))
-        pred_fpwmp22_150 = preprocess_fpwmp22(fpwmp22_testdata[2:2, :], 0., eps(Float64))
-        pred_fpwmp22_800 = preprocess_fpwmp22(fpwmp22_testdata[3:3, :], 0.23 - 0.08, 0.15)
+        pred_fpwmp22_1 = preprocess_fpwmp22(fpwmp22_testdata[1:1, :], 0., eps(Float64), min_val=0.0)
+        pred_fpwmp22_150 = preprocess_fpwmp22(fpwmp22_testdata[2:2, :], 0., eps(Float64), min_val=0.0)
+        pred_fpwmp22_800 = preprocess_fpwmp22(fpwmp22_testdata[3:3, :], 0.23 - 0.08, 0.15, min_val=0.0)
 
         @test gt_fpwmp22_1 ≈ Vector(pred_fpwmp22_1[1, :]) atol = 1e-2
         @test gt_fpwmp22_150 ≈ Vector(pred_fpwmp22_150[1, :]) atol = 1e-2
         @test gt_fpwmp22_800 ≈ Vector(pred_fpwmp22_800[1, :]) atol = 1e-4
     end
+    Finalize_MAGEMin(MAGEMin_db)
+
+    @testset "minimisation with custom TD params" begin
+        W = [2. 3. 3.; 1 1 1; 2 0 0]
+        p = 10.
+        t = 5.
+
+        WG = Sprout.calculate_w_g(W, p, t)
+        @test WG ≈ [17., 6, 2]
+
+        MAGEMin_db = Initialize_MAGEMin("mp", solver=0, verbose=false)
+        p = 12.
+        t = 600.
+        bulk = [78.28, 0.43, 9.50, 0.00, 3.17, 0.04, 1.25, 0.72, 2.49, 4.11]
+        Xoxides = ["SiO2"; "TiO2"; "Al2O3"; "Fe2O3"; "FeO"; "MnO"; "MgO"; "CaO"; "Na2O"; "K2O"]
+        sys_in = "mol"
+        out = multi_point_minimization([p], [t], MAGEMin_db, X=[bulk], Xoxides=Xoxides, sys_in=sys_in)
+
+        # (1) - test mpm_custom gives same result as multi_point_minimization when using the original TD params
+        out_custom =  Sprout.mpm_custom([p], [t], MAGEMin_db, [bulk], Xoxides, sys_in)
+        @test out_custom[1].ph == out[1].ph
+        @test out_custom[1].ph_frac == out[1].ph_frac
+        @test out_custom[1].bulk_S == out[1].bulk_S
+
+        # (1.1) - test mpm_custom single point method
+        out_custom_single = Sprout.mpm_custom(p, t, MAGEMin_db, bulk, Xoxides, sys_in)
+        @test out_custom_single.ph == out_custom[1].ph
+        @test out_custom_single.ph_frac == out_custom[1].ph_frac
+        @test out_custom_single.bulk_S == out_custom[1].bulk_S
+
+        # (2) - test mpm_custom gives same result as multi_point_minimization when using the original TD params
+        # and passing them explicitly as arguments
+        mod_phase = ["g", "bi"]
+
+        W_g = [2.5  0  0 ;
+               2.0  0  0 ;
+               31.0 0  0 ;
+               5.4  0  0 ;
+               2.0  0  0 ;
+               5.0  0  0 ;
+               22.6 0  0 ;
+               0.0  0  0 ;
+               29.4 0  0 ;
+               -15.3 0  0 ]
+
+        W_bi = [12    0  0 ;
+                 4    0  0 ;
+                10    0  0 ;
+                30    0  0 ;
+                 8    0  0 ;
+                 9    0  0 ;
+                 8    0  0 ;
+                15    0  0 ;
+                32    0  0 ;
+                13.6  0  0 ;
+                 6.3  0  0 ;
+                 7    0  0 ;
+                24    0  0 ;
+                 5.6  0  0 ;
+                 8.1  0  0 ;
+                40    0  0 ;
+                 1    0  0 ;
+                13    0  0 ;
+                40    0  0 ;
+                30    0  0 ;
+                11.6  0  0]
+
+
+        # ["py", "alm", "spss", "gr", "kho"]
+        ∆G°_g = [0.0, 0.0, 0.0, 0.0, 0.0]
+
+        # ["phl", "annm", "obi", "east", "tbi", "fbi", "mmbi"]
+        ∆G°_bi = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        out_custom_mod =  Sprout.mpm_custom(p, t, MAGEMin_db, bulk, Xoxides, sys_in; mod_phases=mod_phase, W=[W_g, W_bi], ∆G°=[∆G°_g, ∆G°_bi])
+        @test out_custom_mod.ph == out[1].ph
+        @test out_custom_mod.ph_frac == out[1].ph_frac
+        @test out_custom_mod.bulk_S == out[1].bulk_S
+
+        Finalize_MAGEMin(MAGEMin_db)
+    end
+
 end
