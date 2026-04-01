@@ -14,9 +14,7 @@ end
 
 function (n1::Norm)(x::AbstractArray)
     x_n = (x .- n1.mean) ./ n1.std
-    x_n[isnan.(x_n)] .= 0
-
-    return x_n
+    return ifelse.(isnan.(x_n), zero(x_n), x_n)
 end
 
 # de-normalise call
