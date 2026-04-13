@@ -39,7 +39,7 @@ function generate_mineral_assemblage_diagram(P_bounds::Tuple, T_bounds::Tuple, X
     var_vec = []
     for i in eachindex(1:size(ŷ, 2))
         asm = phase_names[ŷ[:, i, 1]]
-        var = (length(X) - 2) - length(asm) + 2     # N_components - N_phases + 2
+        var = length(X) - length(asm) + 2     # N_components - N_phases + 2
         push!(asm_vec, join(asm, "-"))
         push!(var_vec, var)
     end
