@@ -1,0 +1,14 @@
+name = "mp"
+database = "Metapelite (White et al., 2014)"
+pp_not_considered = []
+ss_not_considered = []
+
+[solvus_names]
+# Specify the phase names for solid solutions with solvi.
+# names must match the names MAGEMin uses for the respective
+# database. (See in `name_solvus.jl` in MAGEMin_C)
+sp   = ["sp", "smt"]
+fsp  = ["pl", "afs"]
+mu   = ["mu", "pat"]
+ilmm = ["ilmm", "hemm"]
+ilm  = ["ilm", "hem"]

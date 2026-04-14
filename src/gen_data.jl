@@ -115,10 +115,11 @@ function generate_data(
         X_bulk                ::AbstractVector{<:AbstractVector{Float64}},
         X_oxides              ::Vector{String},
         sys_in                ::String;
-        modified_phases       ::Union{Vector{String}, Nothing}                    = nothing,
-        W               ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
-        ∆G°             ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
-        seed                  ::Int                                                 = 42
+        name_solvus           ::Bool                                                          = false,
+        modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
+        W                     ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
+        ∆G°                   ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
+        seed                  ::Int                                                          = 42
     ) ::AbstractArray{<:MAGEMin_C.out_struct}
 
     db          = db_info.db_MAGEMin
@@ -138,9 +139,26 @@ function generate_data(
     if !isnothing(modified_phases)
         @info "Generating data with altered thermodynamic properties for phases: $(modified_phases)."
         @assert !isnothing(W) || !isnothing(∆G°) "If modified_phases is provided, W or ∆G° must also be provided."
-        out = mpm_custom(pressure_kbar, temperature_C, MAGEMin_db, X_bulk, X_oxides, sys_in; mod_phases=modified_phases, W=W, ∆G°=∆G°)
+        out = mpm_custom(
+            pressure_kbar,
+            temperature_C,
+            MAGEMin_db,
+            X_bulk,
+            X_oxides,
+            sys_in;
+            name_solvus=name_solvus,
+            mod_phases=modified_phases,
+            W=W,
+            ∆G°=∆G°)
     else
-        out = multi_point_minimization(pressure_kbar, temperature_C, MAGEMin_db, X=X_bulk, Xoxides=X_oxides, sys_in=sys_in)
+        out = multi_point_minimization(
+            pressure_kbar,
+            temperature_C,
+            MAGEMin_db,
+            X=X_bulk,
+            Xoxides=X_oxides,
+            sys_in=sys_in,
+            name_solvus=name_solvus)
     end
 
     # filter out for successful minimizations
@@ -156,9 +174,26 @@ function generate_data(
             @info "Generating data with altered thermodynamic properties for phases: $(modified_phases)."
             W_i = [W[rand(rng, 1:length(W))] for _ in 1:(n - length(out))]
             ∆G°_i = [∆G°[rand(rng, 1:length(∆G°))] for _ in 1:(n - length(out))]
-            out_i = mpm_custom(p_i, t_i, MAGEMin_db, X_i, X_oxides, sys_in; mod_phases=modified_phases, W=W_i, ∆G°=∆G°_i)
+            out_i = mpm_custom(
+                p_i,
+                t_i,
+                MAGEMin_db,
+                X_i,
+                X_oxides,
+                sys_in;
+                name_solvus=name_solvus,
+                mod_phases=modified_phases,
+                W=W_i,
+                ∆G°=∆G°_i)
         else
-            out_i = multi_point_minimization(p_i, t_i, MAGEMin_db, X=X_i, Xoxides=X_oxides, sys_in=sys_in)
+            out_i = multi_point_minimization(
+                p_i,
+                t_i,
+                MAGEMin_db;
+                X=X_i,
+                Xoxides=X_oxides,
+                sys_in=sys_in,
+                name_solvus=name_solvus)
         end
 
         out_i = filter(o -> o.status == 0, out_i)
@@ -171,101 +206,10 @@ function generate_data(
 end
 
 
-function get_mineral_name(db, ss, SS_vec; unambiguous=false)
-    if unambiguous
-    mineral_name = ss
-
-    if db == "ig" || db == "igad"
-        x = SS_vec.compVariables
-        if ss == "spl"
-            if x[3] - 0.5 > 0.0;        mineral_name = "cm";
-            elseif x[4] - 0.5 > 0.0;    mineral_name = "usp";
-            elseif x[2] - 0.5 > 0.0;    mineral_name = "mgt";
-            else                        mineral_name = "spl";    end
-        elseif ss == "fsp"
-            if x[2] - 0.5 > 0.0;       mineral_name = "afs";
-            else                        mineral_name = "pl";    end
-        elseif ss == "mu"
-            if x[4] - 0.5 > 0.0;        mineral_name = "pat";
-            else                        mineral_name = "mu";    end
-        elseif ss == "amp"
-            if x[3] - 0.5 > 0.0;        mineral_name = "gl";
-            elseif -x[3] -x[4] + 0.2 > 0.0;   mineral_name = "act";
-            else
-                if x[6] < 0.1;          mineral_name = "cumm";
-                elseif -1/2*x[4]+x[6]-x[7]-x[8]-x[2]+x[3]>0.5;      mineral_name = "tr";
-                else                    mineral_name = "amp";    end
-            end
-        elseif ss == "ilm"
-            if -x[1] + 0.5 > 0.0;       mineral_name = "hem";
-            else                        mineral_name = "ilm";   end
-        elseif ss == "nph"
-            if x[2] - 0.5 > 0.0;       mineral_name = "K-nph";
-            else                        mineral_name = "nph";   end
-        elseif ss == "cpx"
-            if x[3] - 0.6 > 0.0;        mineral_name = "pig";
-            elseif x[4] - 0.5 > 0.0;    mineral_name = "Na-cpx";
-            else                        mineral_name = "cpx";   end
-        end
-
-    elseif db == "mp" || db == "mpe" || db == "mb" || db == "ume" || db == "mbe"
-        x = SS_vec.compVariables
-        if ss == "sp"
-            if x[2] - 0.5 > 0.0;        mineral_name = "sp";
-            else                        mineral_name = "smt";    end        # UPDATED mt > smt
-        elseif ss == "spl"
-            if x[3] - 0.5 > 0.0;        mineral_name = "cm";
-            elseif x[2] - 0.5 > 0.0;    mineral_name = "mgt";
-            else                        mineral_name = "spl";    end        # UPDATED sp > spl
-        elseif ss == "fsp"
-            if x[2] - 0.5 > 0.0;       mineral_name = "afs";
-            else                        mineral_name = "pl";    end
-        elseif ss == "mu"
-            if x[4] - 0.5 > 0.0;        mineral_name = "pat";
-            else                        mineral_name = "mu";    end
-        elseif ss == "amp"
-            if x[3] - 0.5 > 0.0;        mineral_name = "gl";
-            elseif -x[3]-x[4]+0.2>0.0;  mineral_name = "act";
-            else
-                if x[6] < 0.1;          mineral_name = "cumm";
-                elseif -1/2*x[4]+x[6]-x[7]-x[8]-x[2]+x[3]>0.5;      mineral_name = "tr";
-                else                    mineral_name = "amp";    end
-            end
-        elseif ss == "ilmm"
-            if x[1] - 0.5 > 0.0;        mineral_name = "ilmm";
-            else                        mineral_name = "hemm";   end
-        elseif ss == "ilm"
-            if 1.0 - x[1] > 0.5;        mineral_name = "hem";
-            else                        mineral_name = "ilm";   end
-        elseif ss == "dio"
-            if x[2] > 0.0 && x[2] <= 0.3;       mineral_name = "dio";
-            elseif x[2] > 0.3 && x[2] <= 0.7;   mineral_name = "omph";
-            else                                mineral_name = "jd";   end
-        elseif ss == "occm"
-            if x[2] > 0.5;              mineral_name = "sid";
-            elseif x[3] > 0.5;          mineral_name = "ank";
-            elseif x[1] > 0.25 && x[3] < 0.01;         mineral_name = "mag";
-            else                        mineral_name = "cc";   end
-        elseif ss == "oamp"
-            if x[2] < 0.3;              mineral_name = "anth";  #compositional variable y
-            else                        mineral_name = "ged";   end
-        end
-
-    end
-
-    else
-        @error "Using ambiguous mineral names is a terrible idea!"
-    end
-
-    return mineral_name
-end
-
-
 function extract_data(
         outs                  ::AbstractArray{<:MAGEMin_C.out_struct},
         db_info               ::DatabaseInfo;
-        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod],
-        name_solvus           ::Bool = false
+        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod]
     ) ::Tuple{DataFrame, DataFrame}
 
     n = length(outs)
@@ -312,12 +256,6 @@ function extract_data(
 
         # extract indices of predicted phases in the phase list (from db_info)
         ph_i = out_i.ph
-
-        if name_solvus == true
-            for i=1:out_i.n_SS
-                ph_i[i] = get_mineral_name(db, ph_i[i], out_i.SS_vec[i], unambiguous=true)
-            end
-        end
 
         indices_in_phases = [findfirst(.==(p), phases) for p in ph_i]
         indices_in_ss = [findfirst(.==(s), ss_names) for s in ph_i if s in ss_names]
