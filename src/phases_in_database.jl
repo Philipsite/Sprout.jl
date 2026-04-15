@@ -115,10 +115,11 @@ Information about thermodynamic database
 - `n_oxides` : Number of oxides
 - `pp_names` : Vector of pure phase names
 - `ss_names` : Vector of solution phase names
-- `ss_em_names` : Vecotr of vectors of endmember names for each solution phase
+- `ss_em_names` : Vector of vectors of endmember names for each solution phase
 - `ss_sf_names` : Vector of vectors of site fraction names for each solution phase
 - `n_pp` : Number of pure phases
 - `n_ss` : Number of solution phases
+- `n_em` : Number of endmembers (overall)
 - `n_sf` : Number of site fractions (overall)
 - `pp_comp` : Matrix of pure phase compositions (n_oxides x n_pp)
 - `var_mask_components_in_ss` : Matrix indicating which components are variable in each solution phase (n_oxides x n_ss)
@@ -135,6 +136,7 @@ struct DatabaseInfo
     ss_sf_names                 ::Vector{Vector{String}}
     n_pp                        ::Int
     n_ss                        ::Int
+    n_em                        ::Int
     n_sf                        ::Int
     pp_comp                     ::Matrix{Float32}
     var_mask_components_in_ss   ::Matrix{Float32}
@@ -159,6 +161,7 @@ function load_db_info(toml_path::String)::DatabaseInfo
 
     n_pp        = length(pp_names)
     n_ss        = length(ss_names)
+    n_em        = sum(length.(ss_em_names))
     n_sf        = sum(length.(ss_sf_names))
 
     pp_comp     = reduce(hcat, [Float32.(data["pure_phases"]["composition"][pp]) for pp in pp_names])
@@ -187,6 +190,7 @@ function load_db_info(toml_path::String)::DatabaseInfo
         ss_sf_names,
         n_pp,
         n_ss,
+        n_em,
         n_sf,
         pp_comp,
         var_mask_components_in_ss,
@@ -228,6 +232,7 @@ function update_solvus_phases_db_info(db_info::DatabaseInfo, db_config::Dict{Str
     ss_em_names_updated = reduce(vcat, [haskey(solvus_names, ss) ? repeat([db_info.ss_em_names[i]], length(solvus_names[ss])) : [db_info.ss_em_names[i]] for (i, ss) in enumerate(db_info.ss_names)])
     ss_sf_names_updated = reduce(vcat, [haskey(solvus_names, ss) ? repeat([db_info.ss_sf_names[i]], length(solvus_names[ss])) : [db_info.ss_sf_names[i]] for (i, ss) in enumerate(db_info.ss_names)])
     n_sf_updated = sum(length.(ss_sf_names_updated))
+    n_em_updated = sum(length.(ss_em_names_updated))
 
     # (3) update var_mask_components_in_ss and fixed_components_in_ss
     # Duplicate columns for phases with solvi
@@ -265,6 +270,7 @@ function update_solvus_phases_db_info(db_info::DatabaseInfo, db_config::Dict{Str
         ss_sf_names_updated,  # updated field
         db_info.n_pp,
         n_ss_updated,         # updated field
+        n_em_updated,         # updated field
         n_sf_updated,         # updated field
         db_info.pp_comp,
         var_mask_updated,     # updated field
@@ -274,6 +280,7 @@ function update_solvus_phases_db_info(db_info::DatabaseInfo, db_config::Dict{Str
 end
 
 
+#TODO - This function will need to be expanded in the future to filter other phase specific properties
 """
 Filter the pure phase composition, the variable component mask and the fixed component composition in solution phases
 to only exclude pure and solution phases from a database not considered in the surrogate model training.

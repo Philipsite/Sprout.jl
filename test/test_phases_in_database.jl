@@ -76,6 +76,10 @@
         @test size(db_info.fixed_components_in_ss) == (6, 15)
         @test db_info.fixed_components_in_ss == EXPECTED_FC_SS
 
+        @show db_info.n_pp == 7
+        @show db_info.n_ss == 15
+        @show db_info.n_em == 44
+
         # filter for phases that are never stable
         pp_not_considered = ["co",]
         ss_not_considered = ["ppv",]
@@ -123,6 +127,7 @@
 
         @test db_info_updated.n_ss == db_info.n_ss + 5
         @test db_info_updated.n_sf == db_info.n_sf + 33
+        @test db_info_updated.n_em == db_info.n_em + 21
         @test db_info_updated.ss_names == ["liq", "pl", "afs", "bi", "g", "ep", "ma", "mu", "pat", "opx", "sa", "cd", "st", "chl", "ctd", "sp", "smt", "mt", "ilm", "hem", "ilmm", "hemm"]
         @test db_info_updated.ss_em_names == [["q4L", "abL", "kspL", "anL", "slL", "fo2L", "fa2L", "h2oL"],
                                               ["ab", "an", "san"],
