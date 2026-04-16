@@ -76,10 +76,6 @@
         @test size(db_info.fixed_components_in_ss) == (6, 15)
         @test db_info.fixed_components_in_ss == EXPECTED_FC_SS
 
-        @show db_info.n_pp == 7
-        @show db_info.n_ss == 15
-        @show db_info.n_em == 44
-
         # filter for phases that are never stable
         pp_not_considered = ["co",]
         ss_not_considered = ["ppv",]
