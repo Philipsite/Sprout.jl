@@ -115,7 +115,7 @@ function generate_data(
         X_bulk                ::AbstractVector{<:AbstractVector{Float64}},
         X_oxides              ::Vector{String},
         sys_in                ::String;
-        name_solvus           ::Bool                                                          = false,
+        name_solvus           ::Bool                                                         = true,
         modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
         W                     ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
         ∆G°                   ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
@@ -214,7 +214,7 @@ function extract_data(
         W_binary_names        ::Union{Vector{Vector{String}}, Nothing}                       = nothing,
         ∆G°                   ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
         ∆G°_names             ::Union{Vector{Vector{String}}, Nothing}                       = nothing
-    ) ::Tuple{DataFrame, DataFrame}
+    ) ::DataFrame
 
     n = length(outs)
 
@@ -227,10 +227,9 @@ function extract_data(
     ss_em_names = db_info.ss_em_names
 
     # calculate the start_idx for the sf and em vectors for each solid solution
-    start_idx_sf = cumsum(length.(sf_names[1:end-1])) .+ 1
-    start_idx_sf = vcat(1, start_idx_sf)
-    start_idx_em = cumsum(length.(ss_em_names[1:end-1])) .+ 1
-    start_idx_em = vcat(1, start_idx_em)
+    # n_ss+1 elements (sentinel at end) so start_idx[idx+1] is always valid
+    start_idx_sf = vcat(1, cumsum(length.(sf_names)) .+ 1)
+    start_idx_em = vcat(1, cumsum(length.(ss_em_names)) .+ 1)
 
     # molar masses in out.oxides order (identical across all outs, checked by assert below)
     # and permutation mapping out.Gamma (out.oxides order) → db_info.oxides order
@@ -339,8 +338,7 @@ function extract_data(
 
         # extract indices of predicted phases in the phase list (from db_info)
         ph_i = out_i.ph
-
-        # NOTE - Here check whether all phases predicted are also in the phase list, if not, throw an error (this should not happen if the phase list is correctly extracted from the database)
+        @assert all(in(phases), ph_i) "MAGEMin predicted a phase that is not included in the phases list of the provided `DatabaseInfo`. Check `DATABASE_summary.toml` and `DATABASE_config.toml` whether the data was generated without naming solvus phases correctly."
         indices_in_phases = [findfirst(.==(p), phases) for p in ph_i]
         indices_in_ss = [findfirst(.==(s), ss_names) for s in ph_i if s in ss_names]
 
@@ -388,8 +386,8 @@ function extract_data(
                 ph = out_i.PP_vec[pp_idx]
             end
             M_ph                   = sum(ph.Comp .* molar_masses_oxides)         # g/mol (MAGEMin internal normalisation)
-            G_Jmol⁻¹[idx, i]       = ph.enthalpy * 1000.0
-            H_Jmol⁻¹[idx, i]       = ph.entropy * 1000.0
+            G_Jmol⁻¹[idx, i]       = ph.G * 1000.0
+            H_Jmol⁻¹[idx, i]       = ph.enthalpy * 1000.0
             S_Jmol⁻¹K⁻¹[idx, i]    = ph.entropy * 1000.0
             V_JPa⁻¹mol⁻¹[idx, i]   = ph.V * 1e-6                                 # cm³/mol → m³/mol
             ρ_kgm⁻³[idx, i]        = ph.rho
@@ -423,7 +421,7 @@ function extract_data(
                            for nm in W_binary_names[j] for c in ["H", "S", "V"]]
                           for (j, ph) in enumerate(modified_phases)]...)
     ∆G°_col_names = isnothing(∆G°) ? String[] :
-                    vcat([ph .* "_dG0_" .* ∆G°_names[j]
+                    vcat([ph .* "_∆G°_" .* ∆G°_names[j]
                           for (j, ph) in enumerate(modified_phases)]...)
 
     # bulk system scalar properties
@@ -484,7 +482,7 @@ function extract_data(
         ss_comps_molmol⁻¹oxides, ss_em_frac, ss_μ_em_Jmol⁻¹, ss_sf
     )
 
-    df = DataFrame(data, Symbol.(names))
+    df = DataFrame(data', Symbol.(names))
     return df
 end
 

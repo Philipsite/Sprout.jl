@@ -14,6 +14,7 @@ include("phases_sb21.jl")
 export PP, PP_COMP, PP_COMP_adj, SS, SS_COMP, SS_COMP_adj, IDX_OF_PHASES_NEVER_STABLE, IDX_of_variable_components_in_SS, IDX_phase_frac
 
 include("phases_in_database.jl")
+export DatabaseInfo, extract_db_info, extract_db_info_to_TOML, load_db_info, update_solvus_phases_db_info
 
 include("preprocessing.jl")
 export preprocess_data, one_hot_phase_stability
@@ -29,6 +30,7 @@ include("misfit.jl")
 export misfit
 
 include("gen_data.jl")
+export mpm_custom, generate_data, extract_data
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 export preprocess_fpwmp22, generate_bulks_from_df
 

@@ -152,4 +152,151 @@
         Finalize_MAGEMin(MAGEMin_db)
     end
 
+    @testset "extract_data" begin
+        db_info = Sprout.load_db_info(joinpath("..", "dtb_summaries", "mp_summary.toml"))
+        mp_config = TOML.parsefile(joinpath("..", "dtb_summaries", "mp_config.toml"))
+        db_info = update_solvus_phases_db_info(db_info, mp_config)
+
+        bulk    = [78.28, 0.43, 9.50, 0.00, 3.17, 0.04, 1.25, 0.72, 2.49, 4.11]
+        Xoxides = ["SiO2", "TiO2", "Al2O3", "Fe2O3", "FeO", "MnO", "MgO", "CaO", "Na2O", "K2O"]
+        sys_in  = "mol"
+        p, t    = 12., 600.
+
+        MAGEMin_db = Initialize_MAGEMin("mp", solver=0, verbose=false)
+        outs = multi_point_minimization([p], [t], MAGEMin_db, X=[bulk], Xoxides=Xoxides, sys_in=sys_in)
+
+        # this should trigger an error, as "fsp" is stable (`name_solvus=false`), but not in the db_info phase list
+        @test_throws CompositeException extract_data(outs, db_info)
+
+        outs = multi_point_minimization([p], [t], MAGEMin_db, X=[bulk], Xoxides=Xoxides, sys_in=sys_in, name_solvus=true)
+        df   = extract_data(outs, db_info)
+        out  = outs[1]
+
+        # P-T
+        @test df[1, "P_Pa"] ≈ out.P_kbar * 1e5
+        @test df[1, "T_C"]  ≈ out.T_C
+        # test that no mod TD data are present in the df
+        @test !in("W_bi_phl-ann_H", names(df))
+        @test !in("bi_∆G°_ann", names(df))
+
+        @test collect(df[1, ["bulk_SiO2", "bulk_Al2O3", "bulk_CaO", "bulk_MgO", "bulk_FeO", "bulk_K2O", "bulk_Na2O", "bulk_TiO2", "bulk_O", "bulk_MnO", "bulk_H2O"]]) ≈ [0.7828782878287827, 0.095009500950095, 0.007200720072007199, 0.012501250125012499, 0.0317031703170317, 0.0411041104110411, 0.024902490249024894, 0.0043004300430043, 0.0, 0.00040004000400039994, 0.0]
+
+        # bulk system scalars
+        @test df[1, "G_sys_Jmol⁻¹"]    ≈ out.G_system   * 1000.0
+        @test df[1, "S_sys_JK⁻¹mol⁻¹"] ≈ out.entropy[1] * 1000.0
+        @test df[1, "ρ_sys_kgm⁻³"]     ≈ out.rho
+        @test df[1, "Vp_kms⁻¹"]        ≈ out.Vp
+        @test df[1, "Vs_kms⁻¹"]        ≈ out.Vs
+
+        @test df[1, "μ_CaO_Jmol⁻¹"]       ≈ -785.1737376941828 * 1000
+
+        # test some modes (manually extracted this from MAGEMin)
+        @test df[1, "molar_fraction_afs"] ≈ 0.38539  atol=1e-5
+        @test df[1, "molar_fraction_pl"] ≈ 0.15628   atol=1e-5
+
+        @test df[1, "G_q_Jmol⁻¹"]     ≈ -939.6518062259456  * 1000
+        @test df[1, "H_ky_Jmol⁻¹"]    ≈ -1245.8675301449211 * 1000
+        @test df[1, "S_pl_JK⁻¹mol⁻¹"] ≈ 0.11904667784301644 * 1000
+
+        # test some absent phases
+        @test df[1, "S_hemm_JK⁻¹mol⁻¹"] ≈ 0.0
+        @test df[1, "molar_fraction_liq"] ≈ 0.0
+
+
+        # locate afs and g among stable SS phases to index SS_vec correctly
+        ss_stable = [ph for ph in out.ph if ph in db_info.ss_names]
+        afs_idx = findfirst(==("afs"), ss_stable)
+        g_idx   = findfirst(==("g"),   ss_stable)
+
+        # oxide composition
+        for (k, ox) in enumerate(db_info.oxides)
+            @test df[1, "afs_comp_$(ox)"] ≈ out.SS_vec[afs_idx].Comp[k]
+            @test df[1, "g_comp_$(ox)"]   ≈ out.SS_vec[g_idx].Comp[k]
+        end
+
+        # end-member fractions
+        for (k, em) in enumerate(["ab", "an", "san"])
+            @test df[1, "afs_emfrac_$(em)"] ≈ out.SS_vec[afs_idx].emFrac[k]
+        end
+        for (k, em) in enumerate(["py", "alm", "spss", "gr", "kho"])
+            @test df[1, "g_emfrac_$(em)"] ≈ out.SS_vec[g_idx].emFrac[k]
+        end
+
+        # site fractions
+        for (k, sf) in enumerate(["xNaA", "xCaA", "xKA", "xAlTB", "xSiTB"])
+            @test df[1, "afs_sf_$(sf)"] ≈ out.SS_vec[afs_idx].siteFractions[k]
+        end
+        for (k, sf) in enumerate(["xMgX", "xFeX", "xMnX", "xCaX", "xAlY", "xFe3Y"])
+            @test df[1, "g_sf_$(sf)"] ≈ out.SS_vec[g_idx].siteFractions[k]
+        end
+
+        # test case with modified TD data
+        mod_phases = ["bi", "g"]
+        W          = [[12    0  0 ;
+                        4    0  0 ;
+                       10    0  0 ;
+                       30    0  0 ;
+                        8    0  0 ;
+                        9    0  0 ;
+                        8    0  0 ;
+                       15    0  0 ;
+                       32    0  0 ;
+                       13.6  0  0 ;
+                        6.3  0  0 ;
+                        7    0  0 ;
+                       24    0  0 ;
+                        5.6  0  0 ;
+                        8.1  0  0 ;
+                       40    0  0 ;
+                        1    0  0 ;
+                       13    0  0 ;
+                       40    0  0 ;
+                       30    0  0 ;
+                       11.6  0  0],
+                      [2.5  0  0 ;
+                       2.0  0  0 ;
+                       31.0 0  0 ;
+                       5.4  0  0 ;
+                       2.0  0  0 ;
+                       5.0  0  0 ;
+                       22.6 0  0 ;
+                       0.0  0  0 ;
+                       29.4 0  0 ;
+                       -15.3 0  0]]
+
+        W_names = [["phl-annm",  "phl-obi",   "phl-east",  "phl-tbi",   "phl-fbi",   "phl-mmbi",
+                    "annm-obi",  "annm-east", "annm-tbi",  "annm-fbi",  "annm-mmbi",
+                    "obi-east",  "obi-tbi",   "obi-fbi",   "obi-mmbi",
+                    "east-tbi",  "east-fbi",  "east-mmbi",
+                    "tbi-fbi",   "tbi-mmbi",
+                    "fbi-mmbi"],
+                   ["py-alm",   "py-spss",   "py-gr",     "py-kho",
+                    "alm-spss", "alm-gr",    "alm-kho",
+                    "spss-gr",  "spss-kho",
+                    "gr-kho"]]
+
+        ∆G°        = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                      [0.0, 0.0, 0.0, 0.0, 0.0]]
+
+        ∆G°_names  = [["phl", "annm", "obi", "east", "tbi", "fbi", "mmbi"],
+                      ["py", "alm", "spss", "gr", "kho"]]
+
+        outs   = Sprout.mpm_custom([p], [t], MAGEMin_db, [bulk], Xoxides, sys_in;
+                                   mod_phases=mod_phases, W=[W], ∆G°=[∆G°], name_solvus=true)
+        df_mod = extract_data(outs, db_info;
+                              modified_phases=mod_phases,
+                              W=[W], W_binary_names=W_names,
+                              ∆G°=[∆G°], ∆G°_names=∆G°_names)
+
+        @test df_mod[1, "W_bi_phl-annm_H"] ≈ W[1][1, 1]   # 12.0
+        @test df_mod[1, "W_bi_phl-obi_H"]  ≈ W[1][2, 1]   #  4.0
+        @test df_mod[1, "W_g_py-alm_H"]    ≈ W[2][1, 1]   #  2.5
+        @test df_mod[1, "W_g_gr-kho_H"]    ≈ W[2][10, 1]  # -15.3
+
+        @test df_mod[1, "bi_∆G°_phl"] ≈ ∆G°[1][1]   # 0.0
+        @test df_mod[1, "g_∆G°_alm"]  ≈ ∆G°[2][2]   # 0.0
+
+        Finalize_MAGEMin(MAGEMin_db)
+    end
+
 end
