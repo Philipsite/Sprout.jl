@@ -209,7 +209,11 @@ end
 function extract_data(
         outs                  ::AbstractArray{<:MAGEMin_C.out_struct},
         db_info               ::DatabaseInfo;
-        bulk_params           ::Vector{<:Symbol} = [:rho, :bulkMod, :shearMod]
+        modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
+        W                     ::Union{Vector{<:Vector{<:Matrix{<:AbstractFloat}}}, Nothing}  = nothing,
+        W_binary_names        ::Union{Vector{Vector{String}}, Nothing}                       = nothing,
+        ∆G°                   ::Union{Vector{<:Vector{<:Vector{<:AbstractFloat}}}, Nothing}  = nothing,
+        ∆G°_names             ::Union{Vector{Vector{String}}, Nothing}                       = nothing
     ) ::Tuple{DataFrame, DataFrame}
 
     n = length(outs)
@@ -220,14 +224,23 @@ function extract_data(
     pp_names    = db_info.pp_names
     ss_names    = db_info.ss_names
     sf_names    = db_info.ss_sf_names
+    ss_em_names = db_info.ss_em_names
 
-    # calculate the start_idx for the sf vector for each solid solution
-    start_idx_sf = cumsum(length.(db_info.ss_sf_names[1:end-1])) .+ 1
+    # calculate the start_idx for the sf and em vectors for each solid solution
+    start_idx_sf = cumsum(length.(sf_names[1:end-1])) .+ 1
     start_idx_sf = vcat(1, start_idx_sf)
+    start_idx_em = cumsum(length.(ss_em_names[1:end-1])) .+ 1
+    start_idx_em = vcat(1, start_idx_em)
+
+    # molar masses in out.oxides order (identical across all outs, checked by assert below)
+    # and permutation mapping out.Gamma (out.oxides order) → db_info.oxides order
+    molar_masses_oxides = [MOLAR_MASS[ox] for ox in outs[1].oxides]
+    oxide_perm          = [findfirst(==(ox), outs[1].oxides) for ox in oxides]
 
     phases = vcat(pp_names, ss_names)
     n_phases = db_info.n_pp + db_info.n_ss
     n_ss = db_info.n_ss
+    n_em = db_info.n_em
     n_sf = db_info.n_sf
 
 
@@ -235,60 +248,244 @@ function extract_data(
     @assert all([outs[i].oxides == outs[1].oxides for i in eachindex(outs)]) "Not all out.oxides are identical."
     @assert Set(oxides) == Set(outs[1].oxides) "Oxides in db_info and X_bulk do not match. \n Oxides in db_info: $(oxides) \n Oxides in out: $(outs[1].oxides)"
 
-    # pre-allocate X arrays
-    pressure_kbar = zeros(n)
+    # Some arg checks for modified thermodynamic parameters
+    if !isnothing(W) || !isnothing(W_binary_names) || !isnothing(∆G°) || !isnothing(∆G°_names)
+        !isnothing(modified_phases) || throw(ArgumentError(
+            "`modified_phases` must be provided when `W`, `W_binary_names`, `∆G°`, or `∆G°_names` is given."))
+    end
+    # W and W_binary_names must be provided together
+    if !isnothing(W) || !isnothing(W_binary_names)
+        (!isnothing(W) && !isnothing(W_binary_names)) || throw(ArgumentError(
+            "`W` and `W_binary_names` must be provided together."))
+        length(W_binary_names) == length(modified_phases) || throw(DimensionMismatch(
+            "$length(W_binary_names) `W_binary_names` vectors provided, but $length(modified_phases) modified phases specified."))
+        all(length(W_binary_names[j]) == size(W[1][j], 1) for j in eachindex(modified_phases)) || throw(DimensionMismatch(
+            "Each `W_binary_names[j]` must have as many entries as rows in `W[1][j]`."))
+    end
+    # ∆G° and ∆G°_names must be provided together
+    if !isnothing(∆G°) || !isnothing(∆G°_names)
+        (!isnothing(∆G°) && !isnothing(∆G°_names)) || throw(ArgumentError(
+            "`∆G°` and `∆G°_names` must be provided together."))
+        length(∆G°_names) == length(modified_phases) || throw(DimensionMismatch(
+            "$length(∆G°_names) `∆G°_names` vectors provided, but $length(modified_phases) modified phases specified."))
+        all(length(∆G°_names[j]) == length(∆G°[1][j]) for j in eachindex(modified_phases)) || throw(DimensionMismatch(
+            "Each `∆G°_names[j]` must have as many entries as elements in `∆G°[1][j]`."))
+    end
+
+    # pre-allocate arrays
+    pressure_Pa = zeros(n)
     temperature_C = zeros(n)
-    bulks = zeros(length(oxides), n)
+    bulks_molmol⁻¹oxides = zeros(length(oxides), n)
 
-    # pre-allocate Y arrays
-    ph_modes_mol   = zeros(n_phases, n)
-    ss_comps_mol   = zeros(n_oxides * n_ss, n)
-    ss_sf          = zeros(n_sf, n)
+    # bulk system properties
+    G_sys_Jmol⁻¹            = zeros(n)
+    H_sys_Jmol⁻¹            = zeros(n)
+    S_sys_Jmol⁻¹K⁻¹         = zeros(n)
+    V_sys_JPa⁻¹mol⁻¹        = zeros(n)
+    ρ_sys_kgm⁻³             = zeros(n)
 
-    phys_props     = zeros(length(bulk_params), n)
+    Cp_sys_JK⁻¹mol⁻¹        = zeros(n)
+    Cv_sys_JK⁻¹mol⁻¹        = zeros(n)
+    α_sys_K⁻¹               = zeros(n)
+    K_sys_Pa                = zeros(n)
+
+    μ_oxides_Jmol⁻¹         = zeros(length(oxides), n)
+
+    # seismic properties
+    shear_modulus_sys_Pa    = zeros(n)
+    vp_kms⁻¹                = zeros(n)
+    vs_kms⁻¹                = zeros(n)
+
+    # composition
+    ph_modes_molmol⁻¹phase   = zeros(n_phases, n)
+
+    # phase-wise properties
+    G_Jmol⁻¹                 = zeros(n_phases, n)
+    H_Jmol⁻¹                 = zeros(n_phases, n)
+    S_Jmol⁻¹K⁻¹              = zeros(n_phases, n)
+    V_JPa⁻¹mol⁻¹             = zeros(n_phases, n)
+    ρ_kgm⁻³                  = zeros(n_phases, n)
+
+    Cp_JK⁻¹mol⁻¹             = zeros(n_phases, n)
+    Cv_JK⁻¹mol⁻¹             = zeros(n_phases, n)
+    α_K⁻¹                    = zeros(n_phases, n)
+    K_Pa                     = zeros(n_phases, n)
+
+    ss_comps_molmol⁻¹oxides  = zeros(n_oxides * n_ss, n)
+    ss_em_frac               = zeros(n_em, n)
+    ss_sf                    = zeros(n_sf, n)
+    ss_μ_em_Jmol⁻¹           = zeros(n_em, n)
+
+    # modified thermodynamic parameters — pre-allocate if provided
+    W_data   = isnothing(W)   ? zeros(0, n) :
+               zeros(sum(size(W[1][j], 1) * 3 for j in eachindex(modified_phases)), n)
+    ∆G°_data = isnothing(∆G°) ? zeros(0, n) :
+               zeros(sum(length(∆G°_names[j]) for j in eachindex(modified_phases)), n)
 
     @threads for i in ProgressBar(eachindex(outs))
         out_i = outs[i]
 
-        pressure_kbar[i] = out_i.P_kbar
+        pressure_Pa[i] = out_i.P_kbar * 1e5
         temperature_C[i] = out_i.T_C
-        bulks[:, i] = out_i.bulk
+        bulks_molmol⁻¹oxides[:, i] = out_i.bulk
+
+        if !isnothing(W)
+            # W[i][j] is (n_w × 3) with cols [WH, WS, WV]; vec(W[i][j]') → [W_1_H, W_1_S, W_1_V, W_2_H, ...]
+            W_data[:, i]   = reduce(vcat, [vec(W[i][j]') for j in eachindex(modified_phases)])
+        end
+        if !isnothing(∆G°)
+            ∆G°_data[:, i] = reduce(vcat, ∆G°[i])
+        end
 
         # extract indices of predicted phases in the phase list (from db_info)
         ph_i = out_i.ph
 
+        # NOTE - Here check whether all phases predicted are also in the phase list, if not, throw an error (this should not happen if the phase list is correctly extracted from the database)
         indices_in_phases = [findfirst(.==(p), phases) for p in ph_i]
         indices_in_ss = [findfirst(.==(s), ss_names) for s in ph_i if s in ss_names]
 
-        # add ph_mode
-        ph_modes_mol[indices_in_phases, i] .= out_i.ph_frac
-        # add ss_comp
+        # phase fractions
+        ph_modes_molmol⁻¹phase[indices_in_phases, i] .= out_i.ph_frac
+
+        # ss composition and site fractions
         indices_ss_in_ss_comps_mol = vcat([vcat((idx-1)*n_oxides+1:(idx-1)*n_oxides+n_oxides) for idx in indices_in_ss]...)
-        ss_comps_mol[indices_ss_in_ss_comps_mol, i] .= reduce(vcat, [ss.Comp for ss in out_i.SS_vec])
-        # add ss_sf
+        ss_comps_molmol⁻¹oxides[indices_ss_in_ss_comps_mol, i] .= reduce(vcat, [ss.Comp for ss in out_i.SS_vec])
         indices_sf_in_sf = vcat([start_idx_sf[idx]:(start_idx_sf[idx + 1] - 1) for idx in indices_in_ss]...)
         ss_sf[indices_sf_in_sf, i] .= reduce(vcat, [ss.siteFractions for ss in out_i.SS_vec])
 
-        # TODO - add phys_prop
+        # bulk system thermodynamic properties
+        T_K = out_i.T_C + 273.15
+
+        G_sys_Jmol⁻¹[i]         = out_i.G_system * 1000.0                      # kJ/mol → J/mol
+        H_sys_Jmol⁻¹[i]         = out_i.enthalpy[1] * 1000.0                   # kJ/mol → J/mol
+        S_sys_Jmol⁻¹K⁻¹[i]      = out_i.entropy[1] * 1000.0                    # kJ/(mol K) → J/(mol K)
+        #//NOTE - Update once the V output is fixed in MAGEMin, currently using a work around by recalculating from V[cm3/kg] and M_sys[g/mol]
+        V_sys_JPa⁻¹mol⁻¹[i]     = out_i.V_cm3 * out_i.M_sys / 1000.0 * 1e-6    # cm³/kg × g/mol /1000 → cm³/mol; × 1e-6 → m³/mol
+        ρ_sys_kgm⁻³[i]          = out_i.rho                                    # kg/m³
+
+        Cp_sys_JK⁻¹mol⁻¹[i]     = out_i.s_cp[1] * out_i.M_sys / 1000.0         # J/(kg K) × g/mol /1000 → J/(mol K)
+
+        K_T_sys_Pa               = out_i.bulkMod * 1e9                          # GPa → Pa; out.bulkMod = K_T (isothermal, from ∂²G/∂P²)
+        Cv_sys_JK⁻¹mol⁻¹[i]      = Cp_sys_JK⁻¹mol⁻¹[i] - T_K * V_sys_JPa⁻¹mol⁻¹[i] * out_i.alpha[1]^2 * K_T_sys_Pa  # Cv = Cp - T·V·α²·K_T
+        α_sys_K⁻¹[i]             = out_i.alpha[1]                               # K⁻¹
+        K_sys_Pa[i]              = K_T_sys_Pa                                   # Pa
+
+        μ_oxides_Jmol⁻¹[:, i]   = out_i.Gamma[oxide_perm] .* 1000.0            # kJ/mol → J/mol, reordered to db_info.oxides
+
+        shear_modulus_sys_Pa[i]  = out_i.shearMod * 1e9                         # GPa → Pa
+        vp_kms⁻¹[i]              = out_i.Vp                                     # km/s
+        vs_kms⁻¹[i]              = out_i.Vs                                     # km/s
+
+        # phase-wise thermodynamic properties
+        ss_idx = 0
+        pp_idx = 0
+        for (j, idx) in enumerate(indices_in_phases)
+            if out_i.ph_type[j] == 1    # solid solution
+                ss_idx += 1
+                ph = out_i.SS_vec[ss_idx]
+            else                        # pure phase
+                pp_idx += 1
+                ph = out_i.PP_vec[pp_idx]
+            end
+            M_ph                   = sum(ph.Comp .* molar_masses_oxides)         # g/mol (MAGEMin internal normalisation)
+            G_Jmol⁻¹[idx, i]       = ph.enthalpy * 1000.0
+            H_Jmol⁻¹[idx, i]       = ph.entropy * 1000.0
+            S_Jmol⁻¹K⁻¹[idx, i]    = ph.entropy * 1000.0
+            V_JPa⁻¹mol⁻¹[idx, i]   = ph.V * 1e-6                                 # cm³/mol → m³/mol
+            ρ_kgm⁻³[idx, i]        = ph.rho
+
+            Cp_JK⁻¹mol⁻¹[idx, i]   = ph.cp * M_ph / 1000.0
+            K_T_ph_Pa              = ph.bulkMod * 1e9                           # GPa → Pa; ph.bulkMod = K_T (isothermal, from ∂²G/∂P²)
+            Cv_JK⁻¹mol⁻¹[idx, i]   = Cp_JK⁻¹mol⁻¹[idx, i] - T_K * V_JPa⁻¹mol⁻¹[idx, i] * ph.alpha^2 * K_T_ph_Pa    # Cv = Cp - T·V·α²·K_T
+            α_K⁻¹[idx, i]          = ph.alpha
+            K_Pa[idx, i]           = K_T_ph_Pa                                  # Pa
+        end
+
+        # end-member fractions and chemical potentials (SS only)
+        indices_em_in_em                     = vcat([start_idx_em[idx]:(start_idx_em[idx + 1] - 1) for idx in indices_in_ss]...)
+        ss_em_frac[indices_em_in_em, i]     .= reduce(vcat, [ss.emFrac    for ss in out_i.SS_vec])
+        ss_μ_em_Jmol⁻¹[indices_em_in_em, i] .= reduce(vcat, [ss.emChemPot for ss in out_i.SS_vec]) .* 1000.0
 
     end
 
-    # create DataFrames to write to CSV
-    x_names = ["P_kbar", "T_C", oxides...]
-    y_names = [(phases .* "_mol_frac")...,
-               vcat([repeat([ss], n_oxides) .* ("_" .* oxides)  for ss in ss_names]...)...,
-               vcat([repeat([ss], length(sf_names[idx])) .* ("_" .* sf_names[idx]) for (idx, ss) in enumerate(ss_names)]...)...,
-               String.(bulk_params)...]
+    # column names
+    # P–T
+    pt_names = [
+        "P_Pa", "T_C"
+    ]
 
-    x_data = vcat(pressure_kbar', temperature_C', bulks)
-    y_data = vcat(ph_modes_mol,
-                  ss_comps_mol,
-                  ss_sf,
-                  phys_props)
+    # bulk composition
+    bulk_names = "bulk_" .* oxides
 
-    x_data = DataFrame(x_data', Symbol.(x_names))
-    y_data = DataFrame(y_data', Symbol.(y_names))
-    return x_data, y_data
+    # modified thermodynamic parameters (empty if not provided)
+    W_col_names   = isnothing(W) ? String[] :
+                    vcat([["W_" * ph * "_" * nm * "_" * c
+                           for nm in W_binary_names[j] for c in ["H", "S", "V"]]
+                          for (j, ph) in enumerate(modified_phases)]...)
+    ∆G°_col_names = isnothing(∆G°) ? String[] :
+                    vcat([ph .* "_dG0_" .* ∆G°_names[j]
+                          for (j, ph) in enumerate(modified_phases)]...)
+
+    # bulk system scalar properties
+    sys_scalar_names = [
+        "G_sys_Jmol⁻¹", "H_sys_Jmol⁻¹", "S_sys_JK⁻¹mol⁻¹",
+        "V_sys_m³mol⁻¹", "ρ_sys_kgm⁻³",
+        "Cp_sys_JK⁻¹mol⁻¹", "Cv_sys_JK⁻¹mol⁻¹", "α_sys_K⁻¹", "K_sys_Pa",
+        "shearMod_sys_Pa", "Vp_kms⁻¹", "Vs_kms⁻¹"
+    ]
+
+    # bulk chemical potentials (one per oxide, db_info.oxides order)
+    μ_ox_names = "μ_" .* oxides .* "_Jmol⁻¹"
+
+    # phase modes
+    molar_fraction_names = "molar_fraction_" .* phases
+
+    # phase-wise thermodynamic properties (property-first: n_phases contiguous columns per property)
+    G_ph_names  = "G_"  .* phases .* "_Jmol⁻¹"
+    H_ph_names  = "H_"  .* phases .* "_Jmol⁻¹"
+    S_ph_names  = "S_"  .* phases .* "_JK⁻¹mol⁻¹"
+    V_ph_names  = "V_"  .* phases .* "_m³mol⁻¹"
+    ρ_ph_names  = "ρ_"  .* phases .* "_kgm⁻³"
+    Cp_ph_names = "Cp_" .* phases .* "_JK⁻¹mol⁻¹"
+    Cv_ph_names = "Cv_" .* phases .* "_JK⁻¹mol⁻¹"
+    α_ph_names  = "α_"  .* phases .* "_K⁻¹"
+    K_ph_names  = "K_"  .* phases .* "_Pa"
+
+    # SS compositions: block layout (idx-1)*n_oxides+1 : idx*n_oxides per SS
+    ss_comp_names = vcat([(ph .* "_comp_") .* oxides             for ph in ss_names]...)
+
+    # SS end-member fractions and chemical potentials (variable n_em per SS)
+    ss_emfrac_names = vcat([ph .* "_emfrac_" .* db_info.ss_em_names[i]              for (i, ph) in enumerate(ss_names)]...)
+    ss_μem_names    = vcat([ph .* "_μem_"    .* db_info.ss_em_names[i] .* "_Jmol⁻¹" for (i, ph) in enumerate(ss_names)]...)
+
+    # SS site fractions (variable n_sf per SS)
+    ss_sf_names_col = vcat([ph .* "_sf_"     .* db_info.ss_sf_names[i]              for (i, ph) in enumerate(ss_names)]...)
+
+    names = vcat(
+        pt_names, bulk_names,
+        W_col_names, ∆G°_col_names,
+        sys_scalar_names, μ_ox_names,
+        molar_fraction_names,
+        G_ph_names, H_ph_names, S_ph_names, V_ph_names, ρ_ph_names,
+        Cp_ph_names, Cv_ph_names, α_ph_names, K_ph_names,
+        ss_comp_names, ss_emfrac_names, ss_μem_names, ss_sf_names_col
+    )
+
+    data = vcat(
+        pressure_Pa', temperature_C', bulks_molmol⁻¹oxides,
+        W_data, ∆G°_data,
+        G_sys_Jmol⁻¹', H_sys_Jmol⁻¹', S_sys_Jmol⁻¹K⁻¹', V_sys_JPa⁻¹mol⁻¹', ρ_sys_kgm⁻³',
+        Cp_sys_JK⁻¹mol⁻¹', Cv_sys_JK⁻¹mol⁻¹', α_sys_K⁻¹', K_sys_Pa',
+        shear_modulus_sys_Pa', vp_kms⁻¹', vs_kms⁻¹',
+        μ_oxides_Jmol⁻¹,
+        ph_modes_molmol⁻¹phase,
+        G_Jmol⁻¹, H_Jmol⁻¹, S_Jmol⁻¹K⁻¹, V_JPa⁻¹mol⁻¹, ρ_kgm⁻³,
+        Cp_JK⁻¹mol⁻¹, Cv_JK⁻¹mol⁻¹, α_K⁻¹, K_Pa,
+        ss_comps_molmol⁻¹oxides, ss_em_frac, ss_μ_em_Jmol⁻¹, ss_sf
+    )
+
+    df = DataFrame(data, Symbol.(names))
+    return df
 end
 
 
@@ -309,6 +506,8 @@ end
 DSUM_wt = [44.1, 0.22, 0.261, 7.96, 47.4, 0.042];
 PSUM_wt = [46.2, 4.34, 4.88, 8.88, 35.2, 0.33];
 
+# //NOTE - As soon as the function `generate_dataset()` is generalised to work with any database, this part of the code should be removed
+# Test first whether old functionality is preserved with the new generalised function, then remove this legacy code.
 function generate_dataset(n::Int, filename_base::String;
                           database              ::String            = "sb21",
                           Xoxides               ::Vector{String}    = ["SiO2"; "CaO"; "Al2O3";  "FeO"; "MgO"; "Na2O"],
