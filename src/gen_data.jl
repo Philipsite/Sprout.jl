@@ -405,82 +405,43 @@ function extract_data(
         ss_μ_em_Jmol⁻¹[indices_em_in_em, i] .= reduce(vcat, [ss.emChemPot for ss in out_i.SS_vec]) .* 1000.0
 
     end
+    names = get_col_names(db_info, nothing, modified_phases=modified_phases, W_binary_names=W_binary_names, ∆G°_names=∆G°_names)
 
-    # column names
-    # P–T
-    pt_names = [
-        "P_Pa", "T_C"
-    ]
-
-    # bulk composition
-    bulk_names = "bulk_" .* oxides
-
-    # modified thermodynamic parameters (empty if not provided)
-    W_col_names   = isnothing(W) ? String[] :
-                    vcat([["W_" * ph * "_" * nm * "_" * c
-                           for nm in W_binary_names[j] for c in ["H", "S", "V"]]
-                          for (j, ph) in enumerate(modified_phases)]...)
-    ∆G°_col_names = isnothing(∆G°) ? String[] :
-                    vcat([ph .* "_∆G°_" .* ∆G°_names[j]
-                          for (j, ph) in enumerate(modified_phases)]...)
-
-    # bulk system scalar properties
-    sys_scalar_names = [
-        "G_sys_Jmol⁻¹", "H_sys_Jmol⁻¹", "S_sys_JK⁻¹mol⁻¹",
-        "V_sys_m³mol⁻¹", "ρ_sys_kgm⁻³",
-        "Cp_sys_JK⁻¹mol⁻¹", "Cv_sys_JK⁻¹mol⁻¹", "α_sys_K⁻¹", "K_sys_Pa",
-        "shearMod_sys_Pa", "Vp_kms⁻¹", "Vs_kms⁻¹"
-    ]
-
-    # bulk chemical potentials (one per oxide, db_info.oxides order)
-    μ_ox_names = "μ_" .* oxides .* "_Jmol⁻¹"
-
-    # phase modes
-    molar_fraction_names = "molar_fraction_" .* phases
-
-    # phase-wise thermodynamic properties (property-first: n_phases contiguous columns per property)
-    G_ph_names  = "G_"  .* phases .* "_Jmol⁻¹"
-    H_ph_names  = "H_"  .* phases .* "_Jmol⁻¹"
-    S_ph_names  = "S_"  .* phases .* "_JK⁻¹mol⁻¹"
-    V_ph_names  = "V_"  .* phases .* "_m³mol⁻¹"
-    ρ_ph_names  = "ρ_"  .* phases .* "_kgm⁻³"
-    Cp_ph_names = "Cp_" .* phases .* "_JK⁻¹mol⁻¹"
-    Cv_ph_names = "Cv_" .* phases .* "_JK⁻¹mol⁻¹"
-    α_ph_names  = "α_"  .* phases .* "_K⁻¹"
-    K_ph_names  = "K_"  .* phases .* "_Pa"
-
-    # SS compositions: block layout (idx-1)*n_oxides+1 : idx*n_oxides per SS
-    ss_comp_names = vcat([(ph .* "_comp_") .* oxides             for ph in ss_names]...)
-
-    # SS end-member fractions and chemical potentials (variable n_em per SS)
-    ss_emfrac_names = vcat([ph .* "_emfrac_" .* db_info.ss_em_names[i]              for (i, ph) in enumerate(ss_names)]...)
-    ss_μem_names    = vcat([ph .* "_μem_"    .* db_info.ss_em_names[i] .* "_Jmol⁻¹" for (i, ph) in enumerate(ss_names)]...)
-
-    # SS site fractions (variable n_sf per SS)
-    ss_sf_names_col = vcat([ph .* "_sf_"     .* db_info.ss_sf_names[i]              for (i, ph) in enumerate(ss_names)]...)
-
-    names = vcat(
-        pt_names, bulk_names,
-        W_col_names, ∆G°_col_names,
-        sys_scalar_names, μ_ox_names,
-        molar_fraction_names,
-        G_ph_names, H_ph_names, S_ph_names, V_ph_names, ρ_ph_names,
-        Cp_ph_names, Cv_ph_names, α_ph_names, K_ph_names,
-        ss_comp_names, ss_emfrac_names, ss_μem_names, ss_sf_names_col
+    data_dict = Dict{String, AbstractMatrix{Float64}}(
+        "P_Pa"               => pressure_Pa',
+        "T_C"                => temperature_C',
+        "bulk"               => bulks_molmol⁻¹oxides,
+        "W"                  => W_data,
+        "∆G°"                => ∆G°_data,
+        "G_sys_Jmol⁻¹"       => G_sys_Jmol⁻¹',
+        "H_sys_Jmol⁻¹"       => H_sys_Jmol⁻¹',
+        "S_sys_JK⁻¹mol⁻¹"    => S_sys_Jmol⁻¹K⁻¹',
+        "V_sys_m³mol⁻¹"      => V_sys_JPa⁻¹mol⁻¹',
+        "ρ_sys_kgm⁻³"        => ρ_sys_kgm⁻³',
+        "Cp_sys_JK⁻¹mol⁻¹"   => Cp_sys_JK⁻¹mol⁻¹',
+        "Cv_sys_JK⁻¹mol⁻¹"   => Cv_sys_JK⁻¹mol⁻¹',
+        "α_sys_K⁻¹"          => α_sys_K⁻¹',
+        "K_sys_Pa"           => K_sys_Pa',
+        "shearMod_sys_Pa"    => shear_modulus_sys_Pa',
+        "Vp_kms⁻¹"           => vp_kms⁻¹',
+        "Vs_kms⁻¹"           => vs_kms⁻¹',
+        "μ_oxides_Jmol⁻¹"    => μ_oxides_Jmol⁻¹,
+        "molar_fraction"     => ph_modes_molmol⁻¹phase,
+        "G_phases_Jmol⁻¹"    => G_Jmol⁻¹,
+        "H_phases_Jmol⁻¹"    => H_Jmol⁻¹,
+        "S_phases_JK⁻¹mol⁻¹" => S_Jmol⁻¹K⁻¹,
+        "V_phases_m³mol⁻¹"   => V_JPa⁻¹mol⁻¹,
+        "ρ_phases_kgm⁻³"     => ρ_kgm⁻³,
+        "Cp_phases_JK⁻¹mol⁻¹" => Cp_JK⁻¹mol⁻¹,
+        "Cv_phases_JK⁻¹mol⁻¹" => Cv_JK⁻¹mol⁻¹,
+        "α_phases_K⁻¹"       => α_K⁻¹,
+        "K_phases_Pa"        => K_Pa,
+        "SS_compositions"    => ss_comps_molmol⁻¹oxides,
+        "SS_emfrac"          => ss_em_frac,
+        "SS_μem"             => ss_μ_em_Jmol⁻¹,
+        "SS_site_fractions"  => ss_sf
     )
-
-    data = vcat(
-        pressure_Pa', temperature_C', bulks_molmol⁻¹oxides,
-        W_data, ∆G°_data,
-        G_sys_Jmol⁻¹', H_sys_Jmol⁻¹', S_sys_Jmol⁻¹K⁻¹', V_sys_JPa⁻¹mol⁻¹', ρ_sys_kgm⁻³',
-        Cp_sys_JK⁻¹mol⁻¹', Cv_sys_JK⁻¹mol⁻¹', α_sys_K⁻¹', K_sys_Pa',
-        shear_modulus_sys_Pa', vp_kms⁻¹', vs_kms⁻¹',
-        μ_oxides_Jmol⁻¹,
-        ph_modes_molmol⁻¹phase,
-        G_Jmol⁻¹, H_Jmol⁻¹, S_Jmol⁻¹K⁻¹, V_JPa⁻¹mol⁻¹, ρ_kgm⁻³,
-        Cp_JK⁻¹mol⁻¹, Cv_JK⁻¹mol⁻¹, α_K⁻¹, K_Pa,
-        ss_comps_molmol⁻¹oxides, ss_em_frac, ss_μ_em_Jmol⁻¹, ss_sf
-    )
+    data = vcat([data_dict[k] for k in EXTRACT_DATA_KEYS]...)
 
     df = DataFrame(data', Symbol.(names))
     return df

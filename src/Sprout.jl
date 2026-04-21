@@ -17,6 +17,7 @@ include("phases_in_database.jl")
 export DatabaseInfo, extract_db_info, extract_db_info_to_TOML, load_db_info, update_solvus_phases_db_info
 
 include("preprocessing.jl")
+export get_col_names
 export preprocess_data, one_hot_phase_stability
 
 include("norm.jl")
