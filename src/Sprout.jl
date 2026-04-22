@@ -31,7 +31,7 @@ include("misfit.jl")
 export misfit
 
 include("gen_data.jl")
-export mpm_custom, generate_data, extract_data
+export mpm_custom, run_gem, outs_to_df, extract_dataset, write_to_csv
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
 export preprocess_fpwmp22, generate_bulks_from_df
 

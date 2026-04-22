@@ -1,8 +1,10 @@
-# Canonical ordering of all extractable data groups.
-# Three things must stay in sync whenever a new variable is added:
+# Ordering of all extractable data groups.
+# I f ever new variables are added / grouping is changed,
+# four things must stay in sync whenever:
 #   (1) This constant — defines the order
 #   (2) `grouped_names` in `get_col_names` — maps each key to its column name vector
-#   (3) `data_dict` in `extract_data` — maps each key to its data matrix
+#   (3) Docstring of `get_col_names`/ `extract_dataset` — describes the available keys and their meaning
+#   (4) `data_dict` in `extract_data` — maps each key to its data matrix
 const EXTRACT_DATA_KEYS = [
     "P_Pa", "T_C", "bulk",
     "W", "∆G°",

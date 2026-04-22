@@ -107,7 +107,12 @@ function mpm_custom(pressure_kbar   ::T,
 end
 
 
-function generate_data(
+"""
+Sample `n` random P-T-X points and run MAGEMin minimizations, retrying failed points until
+exactly `n` successful minimizations (status == 0) are returned.
+Pass `modified_phases` with `W` and/or `∆G°` to use custom thermodynamic parameters before minimization.
+"""
+function run_gem(
         n                     ::Int,
         db_info               ::DatabaseInfo,
         pressure_range_kbar   ::Tuple,
@@ -206,7 +211,15 @@ function generate_data(
 end
 
 
-function extract_data(
+"""
+Parse a vector of MAGEMin output structs into a `DataFrame`.
+All variables are extracted by default (see `get_col_names` for available column groups).
+
+If data was generated with custom thermodynamic parameters, pass `modified_phases` with
+`W`/`W_binary_names` and/or `∆G°`/`∆G°_names` to also store the custom thermodynamic
+parameters as columns.
+"""
+function outs_to_df(
         outs                  ::AbstractArray{<:MAGEMin_C.out_struct},
         db_info               ::DatabaseInfo;
         modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
@@ -448,6 +461,65 @@ function extract_data(
 end
 
 
+"""
+Extract `(x, y)` datasets from a `DataFrame` of MAGEMin outputs by selecting columns.
+
+# Available keys for `x_keys` and `y_keys`:
+**P–T**
+- `"P_Pa"` — pressure [Pa]
+- `"T_C"` — temperature [°C]
+
+**Bulk composition**
+- `"bulk"` — bulk oxide fractions [mol/mol], one column per oxide in `db_info.oxides`
+
+**Modified thermodynamic parameters** (requires `modified_phases` + corresponding names args)
+- `"W"` — interaction parameters W [H, S, V] for each binary in each modified phase
+- `"∆G°"` — end-member Gibbs energy corrections for each modified phase
+
+**Bulk system scalar properties**
+- `"G_sys_Jmol⁻¹"`, `"H_sys_Jmol⁻¹"`, `"S_sys_JK⁻¹mol⁻¹"`, `"V_sys_m³mol⁻¹"`, `"ρ_sys_kgm⁻³"`
+- `"Cp_sys_JK⁻¹mol⁻¹"`, `"Cv_sys_JK⁻¹mol⁻¹"`, `"α_sys_K⁻¹"`, `"K_sys_Pa"`
+- `"shearMod_sys_Pa"`, `"Vp_kms⁻¹"`, `"Vs_kms⁻¹"`
+
+**Bulk component chemical potentials**
+- `"μ_oxides_Jmol⁻¹"` — one column per oxide in `db_info.oxides`
+
+**MOlar fractions of stable phases**
+- `"molar_fraction"` — molar phase fractions for all phases (pp + ss)
+
+**Phase-wise thermodynamic properties** (one column per phase for each property)
+- `"G_phases_Jmol⁻¹"`, `"H_phases_Jmol⁻¹"`, `"S_phases_JK⁻¹mol⁻¹"`, `"V_phases_m³mol⁻¹"`, `"ρ_phases_kgm⁻³"`
+- `"Cp_phases_JK⁻¹mol⁻¹"`, `"Cv_phases_JK⁻¹mol⁻¹"`, `"α_phases_K⁻¹"`, `"K_phases_Pa"`
+
+**Solid solution properties**
+- `"SS_compositions"` — oxide compositions per SS phase [mol/mol]
+- `"SS_emfrac"` — end-member fractions per SS phase
+- `"SS_μem"` — end-member chemical potentials [J/mol] per SS phase
+- `"SS_site_fractions"` — site fractions per SS phase
+"""
+function extract_dataset(
+    dataset ::DataFrame,
+    db_info ::DatabaseInfo,
+    x_keys  ::Vector{String},
+    y_keys  ::Vector{String};
+    modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
+    W_binary_names        ::Union{Vector{Vector{String}}, Nothing}                       = nothing,
+    ∆G°_names             ::Union{Vector{Vector{String}}, Nothing}                       = nothing
+    ) ::Tuple{DataFrame, DataFrame}
+
+    x_names = get_col_names(db_info, x_keys, modified_phases=modified_phases, W_binary_names=W_binary_names, ∆G°_names=∆G°_names)
+    y_names = get_col_names(db_info, y_keys, modified_phases=modified_phases, W_binary_names=W_binary_names, ∆G°_names=∆G°_names)
+
+    x = dataset[:, x_names]
+    y = dataset[:, y_names]
+
+    return (x, y)
+end
+
+
+"""
+Write an `(x, y)` tuple of DataFrames to `filename_x.csv` and `filename_y.csv`.
+"""
 function write_to_csv(
         data                  ::Tuple{DataFrame, DataFrame},
         filename              ::AbstractString
@@ -456,6 +528,7 @@ function write_to_csv(
     CSV.write(filename * "_x.csv", x_data)
     CSV.write(filename * "_y.csv", y_data)
 end
+
 
 #======================================================================
 # LEGACY CODE: generate_dataset()

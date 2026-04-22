@@ -1,5 +1,13 @@
 
 @testset begin
+    @testset "get_col_names" begin
+        db_info = load_db_info(joinpath("..", "dtb_summaries", "mp_summary.toml"))
+        mp_config = TOML.parsefile(joinpath("..", "dtb_summaries", "mp_config.toml"))
+        db_info = update_solvus_phases_db_info(db_info, mp_config)
+
+        n_names = length(get_col_names(db_info, nothing))
+        @test n_names == 1014
+    end
     # test Sprout.filter_NaN
     test_data = rand(Float32, 10, 5)
     test_data[2, 3] = NaN32

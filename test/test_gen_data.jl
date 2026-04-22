@@ -152,7 +152,7 @@
         Finalize_MAGEMin(MAGEMin_db)
     end
 
-    @testset "extract_data" begin
+    @testset "outs_to_df" begin
         db_info = Sprout.load_db_info(joinpath("..", "dtb_summaries", "mp_summary.toml"))
         mp_config = TOML.parsefile(joinpath("..", "dtb_summaries", "mp_config.toml"))
         db_info = update_solvus_phases_db_info(db_info, mp_config)
@@ -166,10 +166,10 @@
         outs = multi_point_minimization([p], [t], MAGEMin_db, X=[bulk], Xoxides=Xoxides, sys_in=sys_in)
 
         # this should trigger an error, as "fsp" is stable (`name_solvus=false`), but not in the db_info phase list
-        @test_throws CompositeException extract_data(outs, db_info)
+        @test_throws CompositeException outs_to_df(outs, db_info)
 
         outs = multi_point_minimization([p], [t], MAGEMin_db, X=[bulk], Xoxides=Xoxides, sys_in=sys_in, name_solvus=true)
-        df   = extract_data(outs, db_info)
+        df   = outs_to_df(outs, db_info)
         out  = outs[1]
 
         # P-T
@@ -283,10 +283,10 @@
 
         outs   = Sprout.mpm_custom([p], [t], MAGEMin_db, [bulk], Xoxides, sys_in;
                                    mod_phases=mod_phases, W=[W], ∆G°=[∆G°], name_solvus=true)
-        df_mod = extract_data(outs, db_info;
-                              modified_phases=mod_phases,
-                              W=[W], W_binary_names=W_names,
-                              ∆G°=[∆G°], ∆G°_names=∆G°_names)
+        df_mod = outs_to_df(outs, db_info;
+                                        modified_phases=mod_phases,
+                                        W=[W], W_binary_names=W_names,
+                                        ∆G°=[∆G°], ∆G°_names=∆G°_names)
 
         @test df_mod[1, "W_bi_phl-annm_H"] ≈ W[1][1, 1]   # 12.0
         @test df_mod[1, "W_bi_phl-obi_H"]  ≈ W[1][2, 1]   #  4.0
@@ -297,6 +297,96 @@
         @test df_mod[1, "g_∆G°_alm"]  ≈ ∆G°[2][2]   # 0.0
 
         Finalize_MAGEMin(MAGEMin_db)
+    end
+
+    @testset "extract_dataset" begin
+        db_info = Sprout.load_db_info(joinpath("..", "dtb_summaries", "mp_summary.toml"))
+        mp_config = TOML.parsefile(joinpath("..", "dtb_summaries", "mp_config.toml"))
+        db_info = update_solvus_phases_db_info(db_info, mp_config)
+
+        bulk    = [78.28, 0.43, 9.50, 0.00, 3.17, 0.04, 1.25, 0.72, 2.49, 4.11]
+        Xoxides = ["SiO2", "TiO2", "Al2O3", "Fe2O3", "FeO", "MnO", "MgO", "CaO", "Na2O", "K2O"]
+        sys_in  = "mol"
+        p, t    = 12., 600.
+        mod_phases = ["bi", "g"]
+        W          = [[12    0  0 ;
+                        4    0  0 ;
+                       10    0  0 ;
+                       30    0  0 ;
+                        8    0  0 ;
+                        9    0  0 ;
+                        8    0  0 ;
+                       15    0  0 ;
+                       32    0  0 ;
+                       13.6  0  0 ;
+                        6.3  0  0 ;
+                        7    0  0 ;
+                       24    0  0 ;
+                        5.6  0  0 ;
+                        8.1  0  0 ;
+                       40    0  0 ;
+                        1    0  0 ;
+                       13    0  0 ;
+                       40    0  0 ;
+                       30    0  0 ;
+                       11.6  0  0],
+                      [2.5  0  0 ;
+                       2.0  0  0 ;
+                       31.0 0  0 ;
+                       5.4  0  0 ;
+                       2.0  0  0 ;
+                       5.0  0  0 ;
+                       22.6 0  0 ;
+                       0.0  0  0 ;
+                       29.4 0  0 ;
+                       -15.3 0  0]]
+
+        W_names = [["phl-annm",  "phl-obi",   "phl-east",  "phl-tbi",   "phl-fbi",   "phl-mmbi",
+                    "annm-obi",  "annm-east", "annm-tbi",  "annm-fbi",  "annm-mmbi",
+                    "obi-east",  "obi-tbi",   "obi-fbi",   "obi-mmbi",
+                    "east-tbi",  "east-fbi",  "east-mmbi",
+                    "tbi-fbi",   "tbi-mmbi",
+                    "fbi-mmbi"],
+                   ["py-alm",   "py-spss",   "py-gr",     "py-kho",
+                    "alm-spss", "alm-gr",    "alm-kho",
+                    "spss-gr",  "spss-kho",
+                    "gr-kho"]]
+
+        ∆G°        = [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                      [0.0, 0.0, 0.0, 0.0, 0.0]]
+
+        ∆G°_names  = [["phl", "annm", "obi", "east", "tbi", "fbi", "mmbi"],
+                      ["py", "alm", "spss", "gr", "kho"]]
+
+        MAGEMin_db = Initialize_MAGEMin("mp", solver=0, verbose=false)
+
+        outs   = Sprout.mpm_custom([p], [t], MAGEMin_db, [bulk], Xoxides, sys_in;
+                                   mod_phases=mod_phases, W=[W], ∆G°=[∆G°], name_solvus=true)
+
+        df = outs_to_df(outs, db_info;
+                        modified_phases=mod_phases,
+                        W=[W], W_binary_names=W_names,
+                        ∆G°=[∆G°], ∆G°_names=∆G°_names)
+        x, y = extract_dataset(df, db_info,
+                               ["P_Pa", "T_C", "bulk", "W", "∆G°"],
+                               ["G_sys_Jmol⁻¹", "molar_fraction"],
+                               modified_phases=mod_phases,
+                               W_binary_names=W_names,
+                               ∆G°_names=∆G°_names)
+
+        @test x[1, 1] ≈ p * 1e5
+        @test x[1, 2] ≈ t
+        @test x[1, 3] ≈ 0.7828782878287828
+        @test x[1, 13] ≈ 0.0 # H20 in bulk
+        @test x[1, 14] ≈ W[1][1, 1]   # 12.0
+        @test x[1, 15] ≈ W[1][1, 2]   #  0.0
+        @test x[1, 77] ≈ W[2][1, 1]   # 2.5
+        @test x[1, 107] ≈ ∆G°[1][1]   # 0.0
+        @test x[1, 112] ≈ ∆G°[2][2]   # 0.0
+
+        @test y[1, 1] ≈ outs[1].G_system * 1000.0
+        @test y[1, "molar_fraction_liq"] ≈ 0.0
+        @test y[1, "molar_fraction_afs"] ≈ 0.38539  atol=1e-5
     end
 
 end
