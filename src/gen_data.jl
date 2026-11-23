@@ -499,9 +499,9 @@ Extract `(x, y)` datasets from a `DataFrame` of MAGEMin outputs by selecting col
 """
 function extract_dataset(
     dataset ::DataFrame,
-    db_info ::DatabaseInfo,
+    db_info ::DatabaseInfo;
     x_keys  ::Vector{String},
-    y_keys  ::Vector{String};
+    y_keys  ::Vector{String},
     modified_phases       ::Union{Vector{String}, Nothing}                               = nothing,
     W_binary_names        ::Union{Vector{Vector{String}}, Nothing}                       = nothing,
     ∆G°_names             ::Union{Vector{Vector{String}}, Nothing}                       = nothing
