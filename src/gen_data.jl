@@ -103,7 +103,7 @@ function generate_dataset(n::Int, filename_base::String;
     y_names = [(phase_list .* "_mol_frac")...,
                # (phase_list .* "_rho")...,
                vcat([repeat([ss], 6) .* ("_" .* oxides_in_out)  for ss in SS]...)...,
-               "bulk density", "bulk_modulus", "shear_modulus"]
+               "bulk_density", "bulk_modulus", "shear_modulus"]
 
     x_data = vcat(pressure_kbar', temperature_C', bulks)
     y_data = vcat(ph_mode,
@@ -154,7 +154,7 @@ function generate_noisy_bulk_array(rng::Xoshiro, n::Int;
         x ./= sum(x)
 
         dirichlet_x = Dirichlet(x .* λ)
-        x_noisy = rand(dirichlet_x)
+        x_noisy = rand(rng, dirichlet_x)
         push!(X, x_noisy)
     end
 
