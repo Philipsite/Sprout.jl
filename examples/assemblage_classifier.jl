@@ -11,9 +11,9 @@ y_train = CSV.read("examples/data/sb21_02Oct25_train_y.csv", DataFrame);
 x_val = CSV.read("examples/data/sb21_02Oct25_val_x.csv", DataFrame);
 y_val = CSV.read("examples/data/sb21_02Oct25_val_y.csv", DataFrame);
 
-x_train, 𝑣_train, _, _, _, _ = preprocess_data(x_train, y_train);
+x_train, 𝑣_train, _, _ = preprocess_data(x_train, y_train, bulk_props=String[]);
 y_train = one_hot_phase_stability(𝑣_train);
-x_val, 𝑣_val, _, _, _, _ = preprocess_data(x_val, y_val);
+x_val, 𝑣_val, _, _     = preprocess_data(x_val, y_val, bulk_props=String[]);
 y_val = one_hot_phase_stability(𝑣_val);
 
 # Normalise inputs

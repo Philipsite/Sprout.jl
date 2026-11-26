@@ -11,8 +11,8 @@ y_train = CSV.read("examples/data/sb21_02Oct25_train_y.csv", DataFrame);
 x_val = CSV.read("examples/data/sb21_02Oct25_val_x.csv", DataFrame);
 y_val = CSV.read("examples/data/sb21_02Oct25_val_y.csv", DataFrame);
 
-x_train, 𝑣_train, 𝐗_ss_train, ρ_train, Κ_train, μ_train = preprocess_data(x_train, y_train);
-x_val, 𝑣_val, 𝐗_ss_val, ρ_val, Κ_val, μ_val = preprocess_data(x_val, y_val);
+x_train, 𝑣_train, 𝐗_ss_train, _ = preprocess_data(x_train, y_train, bulk_props=String[]);
+x_val, 𝑣_val, 𝐗_ss_val, _       = preprocess_data(x_val, y_val, bulk_props=String[]);
 
 # Normalise inputs
 xNorm = Norm(x_train);
@@ -47,10 +47,10 @@ opt_state = Flux.setup(Flux.Adam(0.001), m);
 #----------------------------------------------------------------------
 # Normalisation/scaling structures must live on the same device as the model is trained on
 # for training on GPU move normalisers/scalers/pure_phase_comp to GPU; e.g. xNorm_gpu = xNorm |> gpu
-xNorm_gpu = xNorm |> gpu;
-𝑣Scale_gpu = 𝑣Scale |> gpu;
-𝐗Scale_gpu = 𝐗Scale |> gpu;
-pp_mat_gpu = reshape(PP_COMP_adj, 6, :) |> gpu;
+xNorm_gpu = xNorm
+𝑣Scale_gpu = 𝑣Scale
+𝐗Scale_gpu = 𝐗Scale
+pp_mat_gpu = reshape(PP_COMP_adj, 6, :)
 
 function loss((𝑣_ŷ, 𝐗_ŷ), (𝑣, 𝐗), x)
     return sum(abs2, 𝑣_ŷ .- 𝑣) + sum(abs2, 𝐗_ŷ .- 𝐗) + misfit.mass_balance_abs_misfit((descale(𝑣Scale_gpu, 𝑣_ŷ), descale(𝐗Scale_gpu, 𝐗_ŷ)), denorm(xNorm_gpu, x)[3:end,:,:], agg=sum, pure_phase_comp=pp_mat_gpu)
@@ -76,7 +76,7 @@ model, opt_state, logs_t, dir = train_loop(
     loss,
     500,
     metrics = [mae_𝑣, mae_𝐗, mass_balance_metric],
-    gpu_device = gpu_device(),
+    gpu_device = nothing,
     save_to_subdir = joinpath("examples", "reg_model_simoultaneous")
 );
 

@@ -23,8 +23,8 @@ y_train = CSV.read("data/sb21_02Oct25_train_y.csv", DataFrame);
 x_val = CSV.read("data/sb21_02Oct25_val_x.csv", DataFrame);
 y_val = CSV.read("data/sb21_02Oct25_val_y.csv", DataFrame);
 
-x_train, 𝑣_train, 𝐗_ss_train, ρ_train, Κ_train, μ_train = preprocess_data(x_train, y_train);
-x_val, 𝑣_val, 𝐗_ss_val, ρ_val, Κ_val, μ_val = preprocess_data(x_val, y_val);
+x_train, 𝑣_train, 𝐗_ss_train, _ = preprocess_data(x_train, y_train, bulk_props=String[]);
+x_val, 𝑣_val, 𝐗_ss_val, _ = preprocess_data(x_val, y_val, bulk_props=String[]);
 
 # Normalise inputs
 xNorm = Norm(x_train);
