@@ -27,19 +27,19 @@ end
 
 """
 Takes DataFrame of Training/Validation/Test data, returns:
-- x    :: Array{Float32, 3} (Vec, 1, N)        - Input features P [GPa], T [°C], bulk composition [molmol⁻¹]
-- 𝑣    :: Array{Float32, 3} (Vec, 1, N)        - Phase fraction [molmol⁻¹]
-- 𝐗_ss :: Array{Float32, 3} (Matrix, N)        - Solid solution phase compositions [molmol⁻¹]
-— ρ    :: Array{Float32, 3} (Scalar, 1, N)     - System densities
-- Κ    :: Array{Float32, 3} (Scalar, 1, N)     - Bulk moduli
-- μ    :: Array{Float32, 3} (Scalar, 1, N)     - Shear moduli
+- x:: Array{Float32, 3} (Vec, 1, N)        - Input features P [GPa], T [°C], bulk composition [molmol⁻¹]
+- 𝑣:: Array{Float32, 3} (Vec, 1, N)        - Phase fraction [molmol⁻¹]
+- 𝐗_ss:: Array{Float32, 3} (Matrix, N)     - Solid solution phase compositions [molmol⁻¹]
+- 𝐩_sys:: Array{Float32, 3} (n_props, 1, N) - Bulk-system properties, see `BULK_PROPS` for order and units
 
 Applies the following filters:
 - filter observation containing NaN
 - only extract phases that are predicted as part of the stable assemblage at least once in the dataset.
 
 """
-function preprocess_data(x_data::DataFrame, y_data::DataFrame)
+function preprocess_data(x_data::DataFrame, y_data::DataFrame;
+                         bulk_props::AbstractVector{<:AbstractString} = BULK_PROPS)
+
     x = Matrix(Matrix{Float32}(x_data)')
     y = Matrix((Matrix{Float32}(y_data))')
 
@@ -59,13 +59,12 @@ function preprocess_data(x_data::DataFrame, y_data::DataFrame)
     𝑣 = reshape(𝑣, size(𝑣, 1), 1, size(𝑣, 2))
     vec_ss = y[idx_stable_ss, :]
     𝐗_ss = reshape(vec_ss, 6, Int(size(vec_ss, 1) / 6), :)
-    ρ = y[end - 2, :]
-    ρ = reshape(ρ, 1, 1, :)
-    Κ = y[end - 1, :]
-    Κ = reshape(Κ, 1, 1, :)
-    μ = y[end, :]
-    μ = reshape(μ, 1, 1, :)
-    return x::Array{Float32, 3}, 𝑣::Array{Float32,3}, 𝐗_ss::Array{Float32,3}, ρ::Array{Float32,3}, Κ::Array{Float32,3}, μ::Array{Float32,3}
+
+    # bulk-system properties, selected by column name
+    𝐩_sys = Matrix{Float32}(Matrix(y_data[cols_no_nan, bulk_props])')
+    𝐩_sys = reshape(𝐩_sys, size(𝐩_sys, 1), 1, :)
+
+    return x::Array{Float32, 3}, 𝑣::Array{Float32, 3}, 𝐗_ss::Array{Float32, 3}, 𝐩_sys::Array{Float32, 3}
 end
 
 

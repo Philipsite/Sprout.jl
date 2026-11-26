@@ -27,6 +27,7 @@ export misfit
 
 include("gen_data.jl")
 export generate_dataset, generate_bulk_array, generate_noisy_bulk_array
+export BULK_PROPS, OXIDE_MOLAR_MASS, bulk_props, molar_mass, bulk_density, specific_heat_capacity
 
 include("training.jl")
 export train_loop, post_training_plots

@@ -13,13 +13,13 @@ mktempdir() do tmp           # save all outputs to a temp dir for these tests
         Flux.loadmodel!(m_classifier, model_state)
 
         # load DATA
-        x_train = CSV.read("test_data/sb21_22Sep25_t_x.csv", DataFrame)
-        y_train = CSV.read("test_data/sb21_22Sep25_t_y.csv", DataFrame)
-        x_val = CSV.read("test_data/sb21_22Sep25_t_x.csv", DataFrame)
-        y_val = CSV.read("test_data/sb21_22Sep25_t_y.csv", DataFrame)
+        x_train = CSV.read("test_data/sb21_25Nov26_t_x.csv", DataFrame)
+        y_train = CSV.read("test_data/sb21_25Nov26_t_y.csv", DataFrame)
+        x_val = CSV.read("test_data/sb21_25Nov26_t_x.csv", DataFrame)
+        y_val = CSV.read("test_data/sb21_25Nov26_t_y.csv", DataFrame)
 
-        x_train, 𝑣_train, 𝐗_ss_train, ρ_train, Κ_train, μ_train = preprocess_data(x_train, y_train)
-        x_val, 𝑣_val, 𝐗_ss_val, ρ_val, Κ_val, μ_val = preprocess_data(x_val, y_val)
+        x_train, 𝑣_train, 𝐗_ss_train, 𝐩_train = preprocess_data(x_train, y_train)
+        x_val, 𝑣_val, 𝐗_ss_val, 𝐩_train = preprocess_data(x_val, y_val)
 
         # Normalise inputs
         xNorm = Norm(x_train)
